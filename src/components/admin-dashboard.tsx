@@ -52,6 +52,8 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
   const [isRemovingResult, startRemoveResultTransition] = useTransition();
   const [isLoggingOut, startLogoutTransition] = useTransition();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [showNotificationLogs, setShowNotificationLogs] = useState(false);
+  const [showAdminLogs, setShowAdminLogs] = useState(false);
 
   const recentLogs = useMemo(() => logs.slice(0, 8), [logs]);
   const recentAdminLogs = useMemo(() => adminLogs.slice(0, 8), [adminLogs]);
@@ -277,66 +279,86 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
         </section>
 
         <section className="grid gap-4 rounded-4xl border border-white/70 bg-white/90 p-6 shadow-[0_40px_90px_-60px_rgba(15,23,42,0.35)] backdrop-blur">
-          <div className="grid gap-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Delivery health</p>
-            <h2 className="text-2xl font-semibold text-slate-950">Recent notifications</h2>
+          <div className="flex items-center justify-between gap-3">
+            <div className="grid gap-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Delivery health</p>
+              <h2 className="text-2xl font-semibold text-slate-950">Recent notifications</h2>
+            </div>
+            <button
+              onClick={() => setShowNotificationLogs(!showNotificationLogs)}
+              className="rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors"
+            >
+              {showNotificationLogs ? "Hide" : "Show"}
+            </button>
           </div>
 
-          <div className="grid gap-3">
-            {recentLogs.length === 0 ? (
-              <p className="text-sm text-slate-500">No delivery logs yet.</p>
-            ) : (
-              recentLogs.map((log) => (
-                <article key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">{log.matric_number}</p>
-                      <p className="text-xs text-slate-500">{formatDate(log.timestamp)}</p>
+          {showNotificationLogs && (
+            <div className="grid gap-3">
+              {recentLogs.length === 0 ? (
+                <p className="text-sm text-slate-500">No delivery logs yet.</p>
+              ) : (
+                recentLogs.map((log) => (
+                  <article key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">{log.matric_number}</p>
+                        <p className="text-xs text-slate-500">{formatDate(log.timestamp)}</p>
+                      </div>
+                      <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass(log.email_status)}`}>
+                        Email {log.email_status}
+                      </span>
                     </div>
-                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass(log.email_status)}`}>
-                      Email {log.email_status}
-                    </span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium">
-                    <span className={`rounded-full border px-2.5 py-1 ${badgeClass(log.sms_status)}`}>SMS {log.sms_status}</span>
-                    <span className={`rounded-full border px-2.5 py-1 ${badgeClass(log.whatsapp_status)}`}>WhatsApp {log.whatsapp_status}</span>
-                  </div>
-                  {log.error_message ? <p className="mt-3 text-sm text-slate-600">{log.error_message}</p> : null}
-                </article>
-              ))
-            )}
-          </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                      <span className={`rounded-full border px-2.5 py-1 ${badgeClass(log.sms_status)}`}>SMS {log.sms_status}</span>
+                      <span className={`rounded-full border px-2.5 py-1 ${badgeClass(log.whatsapp_status)}`}>WhatsApp {log.whatsapp_status}</span>
+                    </div>
+                    {log.error_message ? <p className="mt-3 text-sm text-slate-600">{log.error_message}</p> : null}
+                  </article>
+                ))
+              )}
+            </div>
+          )}
         </section>
       </div>
 
       <section className="grid gap-4 rounded-4xl border border-white/70 bg-white/90 p-6 shadow-[0_40px_90px_-60px_rgba(15,23,42,0.35)] backdrop-blur">
-        <div className="grid gap-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Admin logs</p>
-          <h2 className="text-2xl font-semibold text-slate-950">Recent admin activity</h2>
+        <div className="flex items-center justify-between gap-3">
+          <div className="grid gap-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Admin logs</p>
+            <h2 className="text-2xl font-semibold text-slate-950">Recent admin activity</h2>
+          </div>
+          <button
+            onClick={() => setShowAdminLogs(!showAdminLogs)}
+            className="rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors"
+          >
+            {showAdminLogs ? "Hide" : "Show"}
+          </button>
         </div>
 
-        <div className="grid gap-3">
-          {recentAdminLogs.length === 0 ? (
-            <p className="text-sm text-slate-500">No admin activity logged yet.</p>
-          ) : (
-            recentAdminLogs.map((log) => (
-              <article key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-950">{log.action.replace(/_/g, " ")}</p>
-                    <p className="text-xs text-slate-500">{formatDate(log.created_at)}</p>
+        {showAdminLogs && (
+          <div className="grid gap-3">
+            {recentAdminLogs.length === 0 ? (
+              <p className="text-sm text-slate-500">No admin activity logged yet.</p>
+            ) : (
+              recentAdminLogs.map((log) => (
+                <article key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">{log.action.replace(/_/g, " ")}</p>
+                      <p className="text-xs text-slate-500">{formatDate(log.created_at)}</p>
+                    </div>
+                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass(log.status)}`}>
+                      {log.status}
+                    </span>
                   </div>
-                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass(log.status)}`}>
-                    {log.status}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm text-slate-600">Admin: {log.admin_email}</p>
-                {log.target ? <p className="mt-1 text-sm text-slate-600">Target: {log.target}</p> : null}
-                {log.detail ? <p className="mt-1 text-sm text-slate-600">{log.detail}</p> : null}
-              </article>
-            ))
-          )}
-        </div>
+                  <p className="mt-2 text-sm text-slate-600">Admin: {log.admin_email}</p>
+                  {log.target ? <p className="mt-1 text-sm text-slate-600">Target: {log.target}</p> : null}
+                  {log.detail ? <p className="mt-1 text-sm text-slate-600">{log.detail}</p> : null}
+                </article>
+              ))
+            )}
+          </div>
+        )}
       </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
