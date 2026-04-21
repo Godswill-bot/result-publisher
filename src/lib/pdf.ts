@@ -35,6 +35,8 @@ export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<s
     const data = await pdf(Buffer.from(buffer));
     const text = data.text;
 
+    console.info(`[pdf-extract] Text from PDF (first 500 chars): ${text.substring(0, 500)}`);
+
     // Look for common matric number patterns:
     // 1. YYYY/XXXX format (e.g., 2021/1182)
     // 2. Continuous digits (e.g., 22010306034)
@@ -59,13 +61,17 @@ export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<s
         const extracted = match[1] || match[0];
         const normalized = normalizeMatricNumber(extracted.replace(/\s+/g, ""));
         
+        console.info(`[pdf-extract] Pattern matched: ${pattern}, extracted: ${extracted}, normalized: ${normalized}`);
+        
         // Validate it looks like a matric number (either YYYY/XXXX or continuous digits)
         if (/^\d{4}\/\d{4,5}$/.test(normalized) || /^\d{10,11}$/.test(normalized)) {
+          console.info(`[pdf-extract] ✓ Valid matric found: ${normalized}`);
           return normalized;
         }
       }
     }
 
+    console.warn(`[pdf-extract] No matric pattern matched in PDF text`);
     return null;
   } catch (error) {
     console.warn("Failed to extract matric from PDF:", error);

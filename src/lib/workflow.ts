@@ -176,11 +176,14 @@ export async function uploadResultFiles(files: File[]): Promise<UploadOutcome[]>
 
       // Try to extract matric number from PDF content first
       let matricNumber = await extractMatricNumberFromPdf(bytes);
+      let extractionSource = "pdf_content";
 
       // Fall back to filename extraction if PDF extraction fails
       if (!matricNumber) {
         try {
           matricNumber = parseMatricNumberFromFilename(file.name);
+          extractionSource = "filename";
+          console.warn(`[extract] PDF extraction failed for ${file.name}, using filename instead`);
         } catch (e) {
           outcomes.push({
             matricNumber: "unknown",
@@ -189,6 +192,8 @@ export async function uploadResultFiles(files: File[]): Promise<UploadOutcome[]>
           });
           continue;
         }
+      } else {
+        console.info(`[extract] Successfully extracted ${matricNumber} from PDF content`);
       }
 
       const storagePath = getResultStoragePath(matricNumber);
