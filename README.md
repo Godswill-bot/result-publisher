@@ -56,6 +56,7 @@ Open `http://localhost:3000` for the public landing page, `http://localhost:3000
 - `POST /api/admin/login`
 - `POST /api/admin/logout`
 - `POST /api/results/upload`
+- `POST /api/results/remove` (remove an uploaded result by matric number)
 - `POST /api/results/publish`
 - `GET /api/students`
 - `GET /api/logs`

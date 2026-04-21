@@ -46,8 +46,10 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
   const [message, setMessage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
   const [isUploading, startUploadTransition] = useTransition();
   const [isPublishing, startPublishTransition] = useTransition();
+  const [isRemovingResult, startRemoveResultTransition] = useTransition();
   const [isLoggingOut, startLogoutTransition] = useTransition();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
@@ -86,7 +88,9 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
       }
 
       const summary =
-        payload.outcomes?.map((outcome) => `${outcome.matricNumber}: ${outcome.status}`).join(" | ") ??
+        payload.outcomes
+          ?.map((outcome) => `${outcome.matricNumber}: ${outcome.status} (${outcome.message})`)
+          .join(" | ") ??
         "Upload completed";
       setMessage(summary);
       setSelectedFiles([]);
@@ -118,9 +122,44 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
       }
 
       const summary =
-        payload.outcomes?.map((outcome) => `${outcome.matricNumber}: ${outcome.status}`).join(" | ") ??
+        payload.outcomes
+          ?.map((outcome) => `${outcome.matricNumber}: ${outcome.status} (${outcome.message})`)
+          .join(" | ") ??
         "Publish completed";
       setMessage(summary);
+      router.refresh();
+    });
+  }
+
+  function handleRemoveSelectedFile(name: string) {
+    setSelectedFiles((current) => current.filter((file) => file.name !== name));
+  }
+
+  function handleClearSelectedFiles() {
+    setSelectedFiles([]);
+  }
+
+  function handleRemoveUploadedResult(matricNumber: string) {
+    setRemoveError(null);
+    setMessage(null);
+
+    startRemoveResultTransition(async () => {
+      const response = await fetch("/api/results/remove", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ matricNumber }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as { message?: string };
+
+      if (!response.ok) {
+        setRemoveError(payload.message ?? "Could not remove uploaded result");
+        return;
+      }
+
+      setMessage(payload.message ?? `Removed uploaded result for ${matricNumber}`);
       router.refresh();
     });
   }
@@ -185,12 +224,28 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
                 <span>No files selected</span>
               ) : (
                 selectedFiles.map((file) => (
-                  <span key={file.name} className="rounded-full border border-slate-200 bg-white px-3 py-1">
-                    {file.name}
+                  <span key={file.name} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1">
+                    <span>{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSelectedFile(file.name)}
+                      className="rounded-full border border-slate-300 px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-100"
+                    >
+                      Remove
+                    </button>
                   </span>
                 ))
               )}
             </div>
+            {selectedFiles.length > 0 ? (
+              <button
+                type="button"
+                onClick={handleClearSelectedFiles}
+                className="inline-flex w-fit rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                Clear selected files
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={handleUpload}
@@ -217,6 +272,7 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
           </div>
 
           {publishError ? <p className="text-sm font-medium text-rose-600">{publishError}</p> : null}
+          {removeError ? <p className="text-sm font-medium text-rose-600">{removeError}</p> : null}
           {message ? <p className="text-sm font-medium text-emerald-700">{message}</p> : null}
         </section>
 
@@ -333,6 +389,7 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
                   <th className="py-3 pr-4">State</th>
                   <th className="py-3 pr-4">Uploaded</th>
                   <th className="py-3 pr-4">Published</th>
+                  <th className="py-3 pr-4">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -346,11 +403,21 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
                     </td>
                     <td className="py-3 pr-4">{formatDate(result.uploaded_at)}</td>
                     <td className="py-3 pr-4">{formatDate(result.published_at)}</td>
+                    <td className="py-3 pr-4">
+                      <button
+                        type="button"
+                        disabled={isRemovingResult}
+                        onClick={() => handleRemoveUploadedResult(result.matric_number)}
+                        className="inline-flex items-center justify-center rounded-full border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isRemovingResult ? "Removing..." : "Remove"}
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {recentResults.length === 0 ? (
                   <tr>
-                    <td className="py-4 text-slate-500" colSpan={4}>
+                    <td className="py-4 text-slate-500" colSpan={5}>
                       No results have been uploaded yet.
                     </td>
                   </tr>

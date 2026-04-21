@@ -24,7 +24,7 @@ export default function AdminAccessPage() {
 
         <Link
           href="/admin/login"
-          className="inline-flex rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          className="inline-flex rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold !text-white transition hover:bg-slate-800"
         >
           Continue to Admin Login
         </Link>

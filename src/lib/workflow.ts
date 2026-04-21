@@ -1,5 +1,5 @@
 import { createSupabaseAnonClient, createSupabaseServiceClient, getStorageBucketName } from "./supabase";
-import { getResultStoragePath, isPdfFile, normalizeMatricNumber, parseMatricNumberFromFilename } from "./pdf";
+import { getResultStoragePath, isPdfFile, normalizeMatricNumber, parseMatricNumberFromFilename, extractMatricNumberFromPdf } from "./pdf";
 import {
   studentRegistrationSchema,
   studentContactUpdateSchema,
@@ -22,6 +22,12 @@ export type UploadOutcome = {
 export type PublishOutcome = {
   matricNumber: string;
   status: "sent" | "skipped" | "failed";
+  message: string;
+};
+
+export type RemoveOutcome = {
+  success: boolean;
+  matricNumber: string;
   message: string;
 };
 
@@ -165,7 +171,26 @@ export async function uploadResultFiles(files: File[]): Promise<UploadOutcome[]>
         continue;
       }
 
-      const matricNumber = parseMatricNumberFromFilename(file.name);
+      // Get file buffer first for PDF content extraction
+      const bytes = await file.arrayBuffer();
+
+      // Try to extract matric number from PDF content first
+      let matricNumber = await extractMatricNumberFromPdf(bytes);
+
+      // Fall back to filename extraction if PDF extraction fails
+      if (!matricNumber) {
+        try {
+          matricNumber = parseMatricNumberFromFilename(file.name);
+        } catch (e) {
+          outcomes.push({
+            matricNumber: "unknown",
+            status: "error",
+            message: `Could not extract matric number from PDF content or filename: ${file.name}`,
+          });
+          continue;
+        }
+      }
+
       const storagePath = getResultStoragePath(matricNumber);
 
       const { data: student, error: studentError } = await supabase
@@ -183,7 +208,6 @@ export async function uploadResultFiles(files: File[]): Promise<UploadOutcome[]>
         continue;
       }
 
-      const bytes = await file.arrayBuffer();
       const uploadResult = await supabase.storage.from(bucket).upload(storagePath, bytes, {
         contentType: "application/pdf",
         upsert: true,
@@ -236,6 +260,54 @@ export async function uploadResultFiles(files: File[]): Promise<UploadOutcome[]>
   }
 
   return outcomes;
+}
+
+export async function removeUploadedResult(matricNumberInput: string): Promise<RemoveOutcome> {
+  const supabase = createSupabaseServiceClient();
+  const matricNumber = normalizeMatricNumber(matricNumberInput);
+
+  const { data: result, error: resultError } = await supabase
+    .from("results")
+    .select("matric_number,pdf_url")
+    .eq("matric_number", matricNumber)
+    .maybeSingle();
+
+  if (resultError) {
+    return { success: false, matricNumber, message: resultError.message };
+  }
+
+  if (!result) {
+    return {
+      success: false,
+      matricNumber,
+      message: "No uploaded result exists for this matric number",
+    };
+  }
+
+  const { error: storageError } = await supabase.storage
+    .from(getStorageBucketName())
+    .remove([result.pdf_url]);
+
+  if (storageError) {
+    return { success: false, matricNumber, message: storageError.message };
+  }
+
+  const { error: deleteResultError } = await supabase
+    .from("results")
+    .delete()
+    .eq("matric_number", matricNumber);
+
+  if (deleteResultError) {
+    return { success: false, matricNumber, message: deleteResultError.message };
+  }
+
+  await supabase.from("notifications").delete().eq("matric_number", matricNumber);
+
+  return {
+    success: true,
+    matricNumber,
+    message: `Removed uploaded result for ${matricNumber}`,
+  };
 }
 
 async function getLatestNotification(matricNumber: string) {

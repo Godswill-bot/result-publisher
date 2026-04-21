@@ -57,6 +57,13 @@ alter table public.admins enable row level security;
 alter table public.notifications enable row level security;
 alter table public.admin_logs enable row level security;
 
+drop policy if exists "students can insert their own registration" on public.students;
+drop policy if exists "students can read their own registration" on public.students;
+drop policy if exists "service role can manage results" on public.results;
+drop policy if exists "service role can manage admins" on public.admins;
+drop policy if exists "service role can manage notifications" on public.notifications;
+drop policy if exists "service role can manage admin logs" on public.admin_logs;
+
 create policy "students can insert their own registration"
   on public.students
   for insert
@@ -68,14 +75,6 @@ create policy "students can read their own registration"
   for select
   to authenticated
   using (true);
-
-create policy "students can update contact details"
-  on public.students
-  for update
-  to anon, authenticated
-  using (true)
-  with check (true);
-
 create policy "service role can manage results"
   on public.results
   for all

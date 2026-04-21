@@ -59,7 +59,12 @@ export const publishResultsSchema = z.object({
   retryOnlyFailed: z.boolean().optional().default(true),
 });
 
+export const removeResultSchema = z.object({
+  matricNumber: matricNumberSchema,
+});
+
 export type StudentRegistrationInput = z.infer<typeof studentRegistrationSchema>;
 export type StudentContactUpdateInput = z.infer<typeof studentContactUpdateSchema>;
 export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 export type PublishResultsInput = z.infer<typeof publishResultsSchema>;
+export type RemoveResultInput = z.infer<typeof removeResultSchema>;
