@@ -1,0 +1,5 @@
+- Keep changes focused on the Student Result Distribution System built with Next.js App Router and Supabase.
+- Use the matric number as the primary identifier for uploads, matching, delivery, and logs.
+- Preserve the current workflow: student registration, admin login, PDF upload, publish, and delivery tracking.
+- Prefer secure server-side validation, Supabase RLS where applicable, and environment variables for secrets.
+- Update the README and deployment notes whenever the setup or runtime expectations change.
