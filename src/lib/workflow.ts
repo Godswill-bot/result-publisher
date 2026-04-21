@@ -1,7 +1,14 @@
 import { createSupabaseAnonClient, createSupabaseServiceClient, getStorageBucketName } from "./supabase";
 import { getResultStoragePath, isPdfFile, normalizeMatricNumber, parseMatricNumberFromFilename } from "./pdf";
-import { studentRegistrationSchema, publishResultsSchema, type PublishResultsInput, type StudentRegistrationInput } from "./validation";
-import type { DashboardStats, NotificationRecord, ResultRecord, StudentRecord } from "./types";
+import {
+  studentRegistrationSchema,
+  studentContactUpdateSchema,
+  publishResultsSchema,
+  type PublishResultsInput,
+  type StudentContactUpdateInput,
+  type StudentRegistrationInput,
+} from "./validation";
+import type { AdminLogRecord, DashboardStats, NotificationRecord, ResultRecord, StudentRecord } from "./types";
 import { sendEmailNotification, sendSmsNotification, sendWhatsAppNotification } from "./notifications";
 
 const resultLinkTtlSeconds = 60 * 60 * 24 * 7;
@@ -33,9 +40,36 @@ export async function registerStudent(input: StudentRegistrationInput): Promise<
   }
 
   const supabase = createSupabaseAnonClient();
+  const normalizedMatric = normalizeMatricNumber(parsed.data.matricNumber);
+  const { data: existingRecords, error: lookupError } = await supabase
+    .from("students")
+    .select("matric_number,email,mtu_email,phone_number,parent_email,parent_phone")
+    .or(
+      [
+        `matric_number.eq.${normalizedMatric}`,
+        `email.eq.${parsed.data.email}`,
+        `mtu_email.eq.${parsed.data.mtuEmail}`,
+        `phone_number.eq.${parsed.data.phoneNumber}`,
+        `parent_email.eq.${parsed.data.parentEmail}`,
+        `parent_phone.eq.${parsed.data.parentPhone}`,
+      ].join(","),
+    );
+
+  if (lookupError) {
+    return { success: false, message: lookupError.message };
+  }
+
+  if (existingRecords && existingRecords.length > 0) {
+    return {
+      success: false,
+      message:
+        "Registration already exists with the same matric number, email, or phone details. Duplicate registrations are not allowed.",
+    };
+  }
+
   const { error } = await supabase.from("students").insert({
     full_name: parsed.data.fullName,
-    matric_number: normalizeMatricNumber(parsed.data.matricNumber),
+    matric_number: normalizedMatric,
     email: parsed.data.email,
     mtu_email: parsed.data.mtuEmail,
     phone_number: parsed.data.phoneNumber,
@@ -47,7 +81,72 @@ export async function registerStudent(input: StudentRegistrationInput): Promise<
     return { success: false, message: error.message };
   }
 
-  return { success: true, matricNumber: normalizeMatricNumber(parsed.data.matricNumber) };
+  return { success: true, matricNumber: normalizedMatric };
+}
+
+export async function updateStudentContacts(input: StudentContactUpdateInput): Promise<RegistrationOutcome> {
+  const parsed = studentContactUpdateSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      message: parsed.error.issues.map((issue) => issue.message).join(", "),
+    };
+  }
+
+  const supabase = createSupabaseAnonClient();
+  const matricNumber = normalizeMatricNumber(parsed.data.matricNumber);
+
+  const updates = {
+    ...(parsed.data.email ? { email: parsed.data.email } : {}),
+    ...(parsed.data.mtuEmail ? { mtu_email: parsed.data.mtuEmail } : {}),
+    ...(parsed.data.phoneNumber ? { phone_number: parsed.data.phoneNumber } : {}),
+    ...(parsed.data.parentEmail ? { parent_email: parsed.data.parentEmail } : {}),
+    ...(parsed.data.parentPhone ? { parent_phone: parsed.data.parentPhone } : {}),
+  };
+
+  const { data: existing } = await supabase
+    .from("students")
+    .select("matric_number")
+    .eq("matric_number", matricNumber)
+    .maybeSingle();
+
+  if (!existing) {
+    return {
+      success: false,
+      message: "No student found with the provided matric number",
+    };
+  }
+
+  const duplicateFilters: string[] = [];
+  if (parsed.data.email) duplicateFilters.push(`email.eq.${parsed.data.email}`);
+  if (parsed.data.mtuEmail) duplicateFilters.push(`mtu_email.eq.${parsed.data.mtuEmail}`);
+  if (parsed.data.phoneNumber) duplicateFilters.push(`phone_number.eq.${parsed.data.phoneNumber}`);
+  if (parsed.data.parentEmail) duplicateFilters.push(`parent_email.eq.${parsed.data.parentEmail}`);
+  if (parsed.data.parentPhone) duplicateFilters.push(`parent_phone.eq.${parsed.data.parentPhone}`);
+
+  if (duplicateFilters.length > 0) {
+    const { data: duplicates } = await supabase
+      .from("students")
+      .select("matric_number")
+      .neq("matric_number", matricNumber)
+      .or(duplicateFilters.join(","));
+
+    if (duplicates && duplicates.length > 0) {
+      return {
+        success: false,
+        message: "One or more provided contact fields are already used by another student",
+      };
+    }
+  }
+
+  const { error } = await supabase.from("students").update(updates).eq("matric_number", matricNumber);
+
+  if (error) {
+    return { success: false, message: error.message };
+  }
+
+  return { success: true, matricNumber };
 }
 
 export async function uploadResultFiles(files: File[]): Promise<UploadOutcome[]> {
@@ -431,10 +530,11 @@ export async function publishResults(input: Partial<PublishResultsInput> = {}) {
 export async function getDashboardSnapshot() {
   const supabase = createSupabaseServiceClient();
 
-  const [studentsResult, resultsResult, logsResult] = await Promise.all([
+  const [studentsResult, resultsResult, logsResult, adminLogsResult] = await Promise.all([
     supabase.from("students").select("*").order("created_at", { ascending: false }),
     supabase.from("results").select("*").order("uploaded_at", { ascending: false }),
     supabase.from("notifications").select("*").order("timestamp", { ascending: false }),
+    supabase.from("admin_logs").select("*").order("created_at", { ascending: false }),
   ]);
 
   if (studentsResult.error) {
@@ -449,9 +549,14 @@ export async function getDashboardSnapshot() {
     throw new Error(logsResult.error.message);
   }
 
+  if (adminLogsResult.error) {
+    throw new Error(adminLogsResult.error.message);
+  }
+
   const students = (studentsResult.data ?? []) as StudentRecord[];
   const results = (resultsResult.data ?? []) as ResultRecord[];
   const logs = (logsResult.data ?? []) as NotificationRecord[];
+  const adminLogs = (adminLogsResult.data ?? []) as AdminLogRecord[];
 
   const stats: DashboardStats = {
     studentCount: students.length,
@@ -471,5 +576,5 @@ export async function getDashboardSnapshot() {
     ).length,
   };
 
-  return { students, results, logs, stats };
+  return { students, results, logs, adminLogs, stats };
 }

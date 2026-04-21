@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
 import { attachAdminSession } from "@/lib/admin-session";
+import { logAdminAction } from "@/lib/admin-logs";
 import { createSupabaseServiceClient } from "@/lib/supabase";
 import { adminLoginSchema } from "@/lib/validation";
 
@@ -24,13 +25,32 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (error || !data) {
+    await logAdminAction({
+      adminEmail: parsed.data.email,
+      action: "login",
+      status: "failed",
+      detail: "Invalid admin credentials",
+    });
     return NextResponse.json({ message: "Invalid admin credentials" }, { status: 401 });
   }
 
   const passwordMatches = await bcrypt.compare(parsed.data.password, data.password_hash);
   if (!passwordMatches) {
+    await logAdminAction({
+      adminEmail: parsed.data.email,
+      action: "login",
+      status: "failed",
+      detail: "Invalid admin credentials",
+    });
     return NextResponse.json({ message: "Invalid admin credentials" }, { status: 401 });
   }
+
+  await logAdminAction({
+    adminEmail: data.email,
+    action: "login",
+    status: "success",
+    detail: "Admin signed in",
+  });
 
   const response = NextResponse.json({ message: "Login successful" });
   attachAdminSession(response, data.email);

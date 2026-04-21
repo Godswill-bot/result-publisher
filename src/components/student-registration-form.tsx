@@ -14,7 +14,8 @@ const initialFormState = {
 
 export function StudentRegistrationForm() {
   const [formState, setFormState] = useState(initialFormState);
-  const [status, setStatus] = useState<string | null>(null);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const [showSuccessNotice, setShowSuccessNotice] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -24,7 +25,7 @@ export function StudentRegistrationForm() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus(null);
+    setErrorStatus(null);
 
     startTransition(async () => {
       const response = await fetch("/api/register-student", {
@@ -41,13 +42,12 @@ export function StudentRegistrationForm() {
       };
 
       if (!response.ok) {
-        setStatus(payload.message ?? "Registration failed");
+        setShowSuccessNotice(false);
+        setErrorStatus(payload.message ?? "Registration failed");
         return;
       }
 
-      setStatus(
-        `Registration saved for ${payload.student?.matricNumber ?? formState.matricNumber.toUpperCase()}`,
-      );
+      setShowSuccessNotice(true);
       setFormState(initialFormState);
     });
   }
@@ -85,8 +85,14 @@ export function StudentRegistrationForm() {
         >
           {isPending ? "Saving..." : "Register student"}
         </button>
-        {status ? <p className="text-sm font-medium text-slate-700">{status}</p> : null}
+        {errorStatus ? <p className="text-sm font-medium text-rose-700">{errorStatus}</p> : null}
       </div>
+
+      {showSuccessNotice ? (
+        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+          Successful, Thank you for registering, from now on results will be sent to the details provided by you.
+        </div>
+      ) : null}
     </form>
   );
 }

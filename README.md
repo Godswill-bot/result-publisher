@@ -52,6 +52,7 @@ Open `http://localhost:3000` for the public landing page, `http://localhost:3000
 ## Key API routes
 
 - `POST /api/register-student`
+- `PATCH /api/register-student` (update student email/phone by matric number)
 - `POST /api/admin/login`
 - `POST /api/admin/logout`
 - `POST /api/results/upload`
@@ -71,4 +72,6 @@ Open `http://localhost:3000` for the public landing page, `http://localhost:3000
 
 - Uploaded PDFs must be named exactly as `matric_number.pdf`.
 - The publish flow creates signed PDF URLs and logs delivery outcomes.
+- Duplicate registrations are rejected when matric number or any submitted contact details already exist.
+- Admin actions (login, logout, upload, publish) are stored in `admin_logs` and shown in the dashboard.
 - The app supports provider-based email and messaging adapters; if SMTP or messaging credentials are missing, the adapters fall back to console logging for development.

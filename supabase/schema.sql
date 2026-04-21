@@ -41,10 +41,21 @@ create table if not exists public.notifications (
   error_message text
 );
 
+create table if not exists public.admin_logs (
+  id uuid primary key default gen_random_uuid(),
+  admin_email text not null,
+  action text not null,
+  target text,
+  status text not null default 'success',
+  detail text,
+  created_at timestamptz not null default now()
+);
+
 alter table public.students enable row level security;
 alter table public.results enable row level security;
 alter table public.admins enable row level security;
 alter table public.notifications enable row level security;
+alter table public.admin_logs enable row level security;
 
 create policy "students can insert their own registration"
   on public.students
@@ -57,6 +68,13 @@ create policy "students can read their own registration"
   for select
   to authenticated
   using (true);
+
+create policy "students can update contact details"
+  on public.students
+  for update
+  to anon, authenticated
+  using (true)
+  with check (true);
 
 create policy "service role can manage results"
   on public.results
@@ -79,6 +97,14 @@ create policy "service role can manage notifications"
   using (true)
   with check (true);
 
+create policy "service role can manage admin logs"
+  on public.admin_logs
+  for all
+  to authenticated
+  using (true)
+  with check (true);
+
 create index if not exists students_matric_number_idx on public.students (matric_number);
 create index if not exists results_delivery_state_idx on public.results (delivery_state);
 create index if not exists notifications_timestamp_idx on public.notifications (timestamp desc);
+create index if not exists admin_logs_timestamp_idx on public.admin_logs (created_at desc);

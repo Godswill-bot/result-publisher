@@ -53,12 +53,6 @@ export default function Home() {
             <p className="text-sm leading-6 text-slate-300">
               Admin sign-in is now separated from student access.
             </p>
-            <Link
-              href="/admin-access"
-              className="inline-flex w-fit rounded-full border border-slate-400 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-white hover:bg-white/10"
-            >
-              Go to Admin Access
-            </Link>
           </div>
         </aside>
       </div>

@@ -29,6 +29,26 @@ export const studentRegistrationSchema = z.object({
   parentPhone: phoneNumberSchema,
 });
 
+export const studentContactUpdateSchema = z
+  .object({
+    matricNumber: matricNumberSchema,
+    email: z.string().trim().email("Enter a valid personal email address").optional(),
+    mtuEmail: z.string().trim().email("Enter a valid school email address").optional(),
+    phoneNumber: phoneNumberSchema.optional(),
+    parentEmail: z.string().trim().email("Enter a valid parent email address").optional(),
+    parentPhone: phoneNumberSchema.optional(),
+  })
+  .refine(
+    (value) =>
+      Boolean(
+        value.email || value.mtuEmail || value.phoneNumber || value.parentEmail || value.parentPhone,
+      ),
+    {
+      message: "Provide at least one email or phone field to update",
+      path: ["matricNumber"],
+    },
+  );
+
 export const adminLoginSchema = z.object({
   email: z.string().trim().email("Enter a valid admin email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -40,5 +60,6 @@ export const publishResultsSchema = z.object({
 });
 
 export type StudentRegistrationInput = z.infer<typeof studentRegistrationSchema>;
+export type StudentContactUpdateInput = z.infer<typeof studentContactUpdateSchema>;
 export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 export type PublishResultsInput = z.infer<typeof publishResultsSchema>;

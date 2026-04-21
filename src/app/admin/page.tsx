@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function AdminDashboardPage() {
   const admin = await requireAdmin();
-  const { students, results, logs, stats } = await getDashboardSnapshot();
+  const { students, results, logs, adminLogs, stats } = await getDashboardSnapshot();
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -20,6 +20,7 @@ export default async function AdminDashboardPage() {
         students={students}
         results={results}
         logs={logs}
+        adminLogs={adminLogs}
         stats={stats}
       />
     </main>

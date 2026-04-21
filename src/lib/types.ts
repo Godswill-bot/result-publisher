@@ -32,6 +32,16 @@ export type NotificationRecord = {
   error_message: string | null;
 };
 
+export type AdminLogRecord = {
+  id: string;
+  admin_email: string;
+  action: string;
+  target: string | null;
+  status: string;
+  detail: string | null;
+  created_at: string;
+};
+
 export type DashboardStats = {
   studentCount: number;
   resultCount: number;
