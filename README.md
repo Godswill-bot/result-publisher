@@ -71,7 +71,7 @@ Open `http://localhost:3000` for the public landing page, `http://localhost:3000
 
 ## Notes
 
-- Uploaded PDFs must be named exactly as `matric_number.pdf`.
+- **PDF matric number extraction**: The system extracts the matric number from the PDF content itself (looks for patterns like `2021/1182` or `Matric Number: 2021/1182`). This means PDFs can have any filename. If extraction fails, it falls back to extracting from the filename.
 - The publish flow creates signed PDF URLs and logs delivery outcomes.
 - Duplicate registrations are rejected when matric number or any submitted contact details already exist.
 - Admin actions (login, logout, upload, publish) are stored in `admin_logs` and shown in the dashboard.
