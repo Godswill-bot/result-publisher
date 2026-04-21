@@ -20,6 +20,25 @@ export async function POST(request: Request) {
 
   try {
     const outcomes = await publishResults(parsed.data);
+
+    if (outcomes.length === 0) {
+      await logAdminAction({
+        adminEmail: admin.email,
+        action: "publish_results",
+        target: "0 result(s)",
+        status: "failed",
+        detail: "No uploaded results found. Upload and match result PDFs before publishing.",
+      });
+
+      return NextResponse.json(
+        {
+          message: "No uploaded results found. Upload and match result PDFs before publishing.",
+          outcomes: [],
+        },
+        { status: 400 },
+      );
+    }
+
     const hasErrors = outcomes.some((outcome) => outcome.status === "failed");
 
     await logAdminAction({
