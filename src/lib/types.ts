@@ -48,5 +48,6 @@ export type DashboardStats = {
   publishedCount: number;
   pendingCount: number;
   failedDeliveries: number;
+  successfulDeliveries: number;
   partialDeliveries: number;
 };

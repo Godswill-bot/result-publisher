@@ -194,11 +194,12 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <StatCard label="Registered students" value={stats.studentCount} accent="from-cyan-500 to-blue-500" />
         <StatCard label="Uploaded results" value={stats.resultCount} accent="from-slate-900 to-slate-700" />
         <StatCard label="Published results" value={stats.publishedCount} accent="from-emerald-500 to-teal-500" />
         <StatCard label="Pending deliveries" value={stats.pendingCount} accent="from-amber-500 to-orange-500" />
+        <StatCard label="Successful deliveries" value={stats.successfulDeliveries} accent="from-green-500 to-emerald-500" />
         <StatCard label="Failed logs" value={stats.failedDeliveries} accent="from-rose-500 to-red-500" />
       </div>
 

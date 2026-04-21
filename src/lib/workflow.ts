@@ -635,16 +635,28 @@ export async function getDashboardSnapshot() {
     resultCount: results.length,
     publishedCount: results.filter((item) => item.delivery_state === "sent").length,
     pendingCount: results.filter((item) => item.delivery_state === "pending").length,
+    // Count logs where at least one channel failed (more accurate)
     failedDeliveries: logs.filter(
       (item) =>
         item.email_status === "failed" ||
         item.sms_status === "failed" ||
         item.whatsapp_status === "failed",
     ).length,
-    partialDeliveries: logs.filter(
+    // Count only fully successful deliveries where all channels succeeded
+    successfulDeliveries: logs.filter(
       (item) =>
-        [item.email_status, item.sms_status, item.whatsapp_status].includes("success") &&
-        [item.email_status, item.sms_status, item.whatsapp_status].includes("failed"),
+        item.email_status === "success" &&
+        item.sms_status === "success" &&
+        item.whatsapp_status === "success",
+    ).length,
+    // Count partial: at least one success AND at least one failure
+    partialDeliveries: logs.filter(
+      (item) => {
+        const statuses = [item.email_status, item.sms_status, item.whatsapp_status];
+        const hasSuccess = statuses.includes("success");
+        const hasFailure = statuses.includes("failed");
+        return hasSuccess && hasFailure;
+      },
     ).length,
   };
 
