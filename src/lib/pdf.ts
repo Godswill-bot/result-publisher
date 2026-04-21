@@ -37,14 +37,19 @@ export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<s
 
     // Look for common matric number patterns:
     // 1. YYYY/XXXX format (e.g., 2021/1182)
-    // 2. YYYY-XXXX format
-    // 3. YYYYXXXX format (no separator)
+    // 2. Continuous digits (e.g., 22010306034)
+    // 3. With explicit "Matric Number" label
     const patterns = [
-      /(\d{4}\/\d{4,5})/,     // YYYY/XXXX or YYYY/XXXXX
-      /(\d{4}-\d{4,5})/,      // YYYY-XXXX or YYYY-XXXXX
+      // Explicit "Matric No" or "Matric Number" labels
+      /MATRIC\s*(?:NUMBER|NO|#)?[\s:]*(\d{10,11})/i,        // "Matric Number: 22010306034"
       /MATRIC\s*(?:NUMBER|NO|#)?[\s:]*(\d{4}\/\d{4,5})/i,  // "Matric Number: 2021/1182"
       /MATRIC\s*(?:NUMBER|NO|#)?[\s:]*(\d{4}-\d{4,5})/i,   // "Matric Number: 2021-1182"
       /MATRIC\s*(?:NUMBER|NO|#)?[\s:]*(\d{4}\s+\d{4,5})/i, // "Matric Number: 2021 1182"
+      // Without label - continuous digits first (10-11 digits is typical student matric)
+      /\b(\d{10,11})\b/,                                     // 22010306034
+      // Slashed format without label
+      /(\d{4}\/\d{4,5})/,                                    // 2021/1182
+      /(\d{4}-\d{4,5})/,                                     // 2021-1182
     ];
 
     for (const pattern of patterns) {
@@ -52,10 +57,10 @@ export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<s
       if (match) {
         // Extract and normalize the matched matric number
         const extracted = match[1] || match[0];
-        const normalized = normalizeMatricNumber(extracted.replace(/\s+/g, "/"));
+        const normalized = normalizeMatricNumber(extracted.replace(/\s+/g, ""));
         
-        // Validate it looks like a matric number
-        if (/^\d{4}\/\d{4,5}$/.test(normalized)) {
+        // Validate it looks like a matric number (either YYYY/XXXX or continuous digits)
+        if (/^\d{4}\/\d{4,5}$/.test(normalized) || /^\d{10,11}$/.test(normalized)) {
           return normalized;
         }
       }
