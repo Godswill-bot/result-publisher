@@ -1,5 +1,5 @@
 import { createSupabaseAnonClient, createSupabaseServiceClient, getStorageBucketName } from "./supabase";
-import { getResultStoragePath, isPdfFile, normalizeMatricNumber, parseMatricNumberFromFilename, extractMatricNumberFromPdf } from "./pdf";
+import { getResultStoragePath, isPdfFile, normalizeMatricNumber, parseMatricNumberFromFilename, extractMatricNumberFromPdf, isResultDocument } from "./pdf";
 import {
   studentRegistrationSchema,
   studentContactUpdateSchema,
@@ -173,6 +173,17 @@ export async function uploadResultFiles(files: File[]): Promise<UploadOutcome[]>
 
       // Get file buffer first for PDF content extraction
       const bytes = await file.arrayBuffer();
+
+      // Validate that this is actually a result document by checking for "Submission ID" marker
+      const isValidResult = await isResultDocument(bytes);
+      if (!isValidResult) {
+        outcomes.push({
+          matricNumber: "unknown",
+          status: "error",
+          message: `${file.name} is not a valid result document. Missing 'Submission ID' marker. Ensure the PDF is an actual result sheet.`,
+        });
+        continue;
+      }
 
       // Try to extract matric number from PDF content first
       let matricNumber = await extractMatricNumberFromPdf(bytes);

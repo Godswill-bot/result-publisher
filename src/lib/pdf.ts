@@ -138,3 +138,71 @@ export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<s
     return null;
   }
 }
+
+/**
+ * Validate that a PDF is a result document by checking for secondary identifier.
+ * Looks for "Submission ID" text to confirm it's an actual result document,
+ * not just any document that happens to contain a matric number.
+ */
+export async function isResultDocument(buffer: ArrayBuffer): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require("pdf-parse/lib/pdf-parse.js");
+    const parsed = await pdfParse(Buffer.from(buffer));
+    const text = parsed.text || "";
+
+    // Check for "Submission ID" marker (case-insensitive)
+    const hasSubmissionId = /SUBMISSION\s*ID/i.test(text);
+
+    if (hasSubmissionId) {
+      console.info(`[pdf-validate] ✓ Document contains 'Submission ID' marker - Valid result document`);
+      return true;
+    }
+
+    console.warn(`[pdf-validate] ✗ Document missing 'Submission ID' marker - NOT a result document`);
+    return false;
+  } catch (error) {
+    console.warn("Failed to validate result document:", error);
+    return false;
+  }
+}
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        // Extract and normalize the matched matric number
+        const extracted = match[1] || match[0];
+        const normalized = normalizeMatricNumber(extracted.replace(/\s+/g, ""));
+        
+        console.info(`[pdf-extract] Pattern matched: ${pattern}, extracted: ${extracted}, normalized: ${normalized}`);
+        
+        // Validate it looks like a matric number (either YYYY/XXXX or continuous digits)
+        if (/^\d{4}\/\d{4,5}$/.test(normalized) || /^\d{10,11}$/.test(normalized)) {
+          console.info(`[pdf-extract] ✓ Valid matric found: ${normalized}`);
+          return normalized;
+        }
+      }
+    }
+
+    // Some PDFs collapse table rows into one token stream (e.g., "122010306034NWAFOR").
+    // Scan all 10-11 digit candidates and prioritize plausible admission-year prefixes.
+    const relaxedDigitCandidates: string[] = [];
+    for (const match of text.matchAll(/\d{10,11}/g)) {
+      if (match[0]) {
+        relaxedDigitCandidates.push(match[0]);
+      }
+    }
+    for (const candidate of relaxedDigitCandidates) {
+      if (/^(20|21|22|23|24|25)\d{8,9}$/.test(candidate)) {
+        console.info(`[pdf-extract] ✓ Relaxed candidate matric found: ${candidate}`);
+        return candidate;
+      }
+    }
+
+    console.warn(`[pdf-extract] No matric pattern matched in PDF text`);
+    return null;
+  } catch (error) {
+    console.warn("Failed to extract matric from PDF:", error);
+    return null;
+  }
+}
