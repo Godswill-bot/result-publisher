@@ -1,12 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f7fb;
-  --foreground: #0f172a;
+  --background: #f3f9f4;
+  --foreground: #0d2d1a;
   --surface: rgba(255, 255, 255, 0.86);
   --surface-strong: #ffffff;
-  --border: rgba(148, 163, 184, 0.26);
-  --shadow: 0 30px 100px -50px rgba(15, 23, 42, 0.45);
+  --border: rgba(34, 128, 71, 0.24);
+  --shadow: 0 30px 100px -50px rgba(13, 45, 26, 0.4);
+  --brand: #1f7a44;
+  --brand-soft: #77d15f;
+  --accent: #9b7acb;
 }
 
 * {
@@ -19,9 +22,9 @@ body {
   font-family: var(--font-space-grotesk), sans-serif;
   min-height: 100vh;
   background-image:
-    radial-gradient(circle at top left, rgba(34, 211, 238, 0.18), transparent 34%),
-    radial-gradient(circle at top right, rgba(15, 23, 42, 0.08), transparent 30%),
-    linear-gradient(180deg, #f8fbff 0%, #edf3f9 50%, #f6f8fc 100%);
+    radial-gradient(circle at top left, rgba(119, 209, 95, 0.24), transparent 34%),
+    radial-gradient(circle at top right, rgba(155, 122, 203, 0.14), transparent 30%),
+    linear-gradient(180deg, #f8fdf8 0%, #eef8f0 52%, #f3f9f4 100%);
 }
 
 body::before {
@@ -43,8 +46,8 @@ a {
 }
 
 ::selection {
-  background: rgba(14, 165, 233, 0.22);
-  color: #0f172a;
+  background: rgba(31, 122, 68, 0.24);
+  color: #0d2d1a;
 }
 
 .panel {
@@ -57,4 +60,16 @@ a {
 
 .mono {
   font-family: var(--font-ibm-plex-mono), monospace;
+}
+
+.text-brand {
+  color: var(--brand);
+}
+
+.border-brand {
+  border-color: var(--brand);
+}
+
+.border-brand-soft {
+  border-color: var(--brand-soft);
 }

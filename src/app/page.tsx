@@ -5,7 +5,7 @@ export default function Home() {
     <main className="mx-auto flex min-h-screen w-full max-w-7xl items-center px-4 py-10 sm:px-6 lg:px-8">
       <div className="grid w-full gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="panel grid gap-6 rounded-4xl p-8 lg:p-10">
-          <div className="inline-flex w-fit rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-cyan-800">
+          <div className="inline-flex w-fit rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-800">
             Student Result Distribution System
           </div>
 
@@ -22,7 +22,7 @@ export default function Home() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/register"
-              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold !text-white transition hover:bg-slate-800"
+              className="rounded-full bg-emerald-900 px-6 py-3 text-sm font-semibold !text-white transition hover:bg-emerald-800"
             >
               Register A Student
             </Link>
@@ -45,12 +45,12 @@ export default function Home() {
             </ol>
           </div>
 
-          <div className="grid gap-4 rounded-4xl border border-slate-200 bg-slate-950 p-8 text-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.7)]">
+          <div className="grid gap-4 rounded-4xl border border-emerald-200 bg-emerald-950 p-8 text-white shadow-[0_30px_80px_-50px_rgba(6,78,59,0.6)]">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Admin portal</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Admin portal</p>
               <p className="mt-3 text-2xl font-semibold">Use a separate route for admin access</p>
             </div>
-            <p className="text-sm leading-6 text-slate-300">
+            <p className="text-sm leading-6 text-emerald-100/85">
               Admin sign-in is now separated from student access.
             </p>
           </div>

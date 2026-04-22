@@ -29,26 +29,10 @@ export function isPdfFile(file: File) {
 
 export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<string | null> {
   try {
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(buffer),
-      disableWorker: true,
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      useSystemFonts: true,
-    } as any);
-
-    const pdf = await loadingTask.promise;
-    let text = "";
-
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item) => ("str" in item ? item.str : ""))
-        .join(" ");
-      text += `${pageText}\n`;
-    }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require("pdf-parse");
+    const parsed = await pdfParse(Buffer.from(buffer));
+    const text = parsed.text || "";
 
     console.info(`[pdf-extract] Text from PDF (first 500 chars): ${text.substring(0, 500)}`);
 
@@ -83,6 +67,21 @@ export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<s
           console.info(`[pdf-extract] ✓ Valid matric found: ${normalized}`);
           return normalized;
         }
+      }
+    }
+
+    // Some PDFs collapse table rows into one token stream (e.g., "122010306034NWAFOR").
+    // Scan all 10-11 digit candidates and prioritize plausible admission-year prefixes.
+    const relaxedDigitCandidates: string[] = [];
+    for (const match of text.matchAll(/\d{10,11}/g)) {
+      if (match[0]) {
+        relaxedDigitCandidates.push(match[0]);
+      }
+    }
+    for (const candidate of relaxedDigitCandidates) {
+      if (/^(20|21|22|23|24|25)\d{8,9}$/.test(candidate)) {
+        console.info(`[pdf-extract] ✓ Relaxed candidate matric found: ${candidate}`);
+        return candidate;
       }
     }
 
