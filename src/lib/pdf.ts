@@ -32,10 +32,11 @@ export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<s
     const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
+      disableWorker: true,
       useWorkerFetch: false,
       isEvalSupported: false,
       useSystemFonts: true,
-    });
+    } as any);
 
     const pdf = await loadingTask.promise;
     let text = "";
