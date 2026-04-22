@@ -2,20 +2,22 @@ import Image from "next/image";
 
 export function SiteBrand() {
   return (
-    <div className="fixed right-4 top-4 z-40 sm:right-6 sm:top-6 lg:right-8">
-      <div className="panel flex items-center gap-3 rounded-2xl border-brand/35 px-3 py-2 sm:px-4">
-        <p className="text-right text-xs font-semibold uppercase tracking-[0.22em] text-brand sm:text-sm">
-          Mountain top university
-        </p>
-        <Image
-          src="/mtu-logo.png"
-          alt="Mountain Top University logo"
-          width={48}
-          height={48}
-          className="h-11 w-11 rounded-md border border-brand-soft/70 bg-white object-contain p-1 sm:h-12 sm:w-12"
-          priority
-        />
+    <header className="fixed inset-x-0 top-0 z-40 border-b border-brand/25 bg-white/85 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-3 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3">
+          <Image
+            src="/mtu-logo.png"
+            alt="Mountain Top University logo"
+            width={48}
+            height={48}
+            className="h-10 w-10 rounded-md border border-brand-soft/70 bg-white object-contain p-1 sm:h-11 sm:w-11"
+            priority
+          />
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand sm:text-sm">
+            Mountain top university
+          </p>
+        </div>
       </div>
-    </div>
+    </header>
   );
 }
