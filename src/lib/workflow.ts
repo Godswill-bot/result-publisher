@@ -158,122 +158,173 @@ export async function updateStudentContacts(input: StudentContactUpdateInput): P
 export async function uploadResultFiles(files: File[]): Promise<UploadOutcome[]> {
   const supabase = createSupabaseServiceClient();
   const bucket = getStorageBucketName();
-  const outcomes: UploadOutcome[] = [];
 
-  for (const file of files) {
+  // OPTIMIZATION: Process all files in parallel (extract buffers, validate, extract matric numbers)
+  const fileProcessingPromises = files.map(async (file) => {
     try {
       if (!isPdfFile(file)) {
-        outcomes.push({
+        return {
+          file,
           matricNumber: "unknown",
-          status: "error",
+          status: "error" as const,
           message: `${file.name} is not a PDF file`,
-        });
-        continue;
+        };
       }
 
-      // Get file buffer first for PDF content extraction
       const bytes = await file.arrayBuffer();
 
-      // Validate that this is actually a result document by checking for "Submission ID" marker
+      // Validate document type
       const isValidResult = await isResultDocument(bytes);
       if (!isValidResult) {
-        outcomes.push({
+        return {
+          file,
           matricNumber: "unknown",
-          status: "error",
+          status: "error" as const,
           message: `${file.name} is not a valid result document. Missing 'Submission ID' marker. Ensure the PDF is an actual result sheet.`,
-        });
-        continue;
+        };
       }
 
-      // Try to extract matric number from PDF content first
+      // Extract matric number
       let matricNumber = await extractMatricNumberFromPdf(bytes);
-      let extractionSource = "pdf_content";
-
-      // Fall back to filename extraction if PDF extraction fails
       if (!matricNumber) {
         try {
           matricNumber = parseMatricNumberFromFilename(file.name);
-          extractionSource = "filename";
           console.warn(`[extract] PDF extraction failed for ${file.name}, using filename instead`);
         } catch (e) {
-          outcomes.push({
+          return {
+            file,
             matricNumber: "unknown",
-            status: "error",
+            status: "error" as const,
             message: `Could not extract matric number from PDF content or filename: ${file.name}`,
-          });
-          continue;
+          };
         }
       } else {
         console.info(`[extract] Successfully extracted ${matricNumber} from PDF content`);
       }
 
-      const storagePath = getResultStoragePath(matricNumber);
-
-      const { data: student, error: studentError } = await supabase
-        .from("students")
-        .select("matric_number, full_name")
-        .eq("matric_number", matricNumber)
-        .maybeSingle();
-
-      if (studentError || !student) {
-        outcomes.push({
-          matricNumber,
-          status: "skipped",
-          message: `No student record found for ${matricNumber}`,
-        });
-        continue;
-      }
-
-      const uploadResult = await supabase.storage.from(bucket).upload(storagePath, bytes, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-
-      if (uploadResult.error) {
-        outcomes.push({
-          matricNumber,
-          status: "error",
-          message: uploadResult.error.message,
-        });
-        continue;
-      }
-
-      const { error: resultError } = await supabase.from("results").upsert(
-        {
-          matric_number: matricNumber,
-          pdf_url: storagePath,
-          uploaded_at: new Date().toISOString(),
-          published_at: null,
-          delivery_state: "pending",
-          delivery_attempts: 0,
-          last_error: null,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "matric_number" },
-      );
-
-      if (resultError) {
-        outcomes.push({
-          matricNumber,
-          status: "error",
-          message: resultError.message,
-        });
-        continue;
-      }
-
-      outcomes.push({
+      return {
+        file,
+        bytes,
         matricNumber,
-        status: "uploaded",
-        message: `Uploaded result for ${student.full_name}`,
-      });
+        status: "pending" as const,
+      };
     } catch (error) {
-      outcomes.push({
+      return {
+        file,
         matricNumber: "unknown",
-        status: "error",
+        status: "error" as const,
         message: error instanceof Error ? error.message : "Unexpected upload failure",
-      });
+      };
     }
+  });
+
+  const processedFiles = await Promise.all(fileProcessingPromises);
+
+  // Extract valid files for batch student lookup
+  const validFiles = processedFiles.filter(
+    (p) => p.status === "pending",
+  ) as Array<{ file: File; bytes: ArrayBuffer; matricNumber: string; status: "pending" }>;
+
+  // OPTIMIZATION: Batch student lookup instead of individual queries
+  const matricNumbers = validFiles.map((p) => p.matricNumber);
+  const { data: students = [] } = await supabase
+    .from("students")
+    .select("matric_number, full_name")
+    .in("matric_number", matricNumbers);
+  const studentsByMatric = new Map(students.map((s) => [s.matric_number, s]));
+
+  // OPTIMIZATION: Upload all files to storage in parallel
+  const uploadPromises = validFiles.map(async (processed) => {
+    const student = studentsByMatric.get(processed.matricNumber);
+    if (!student) {
+      return {
+        matricNumber: processed.matricNumber,
+        status: "skipped" as const,
+        message: `No student record found for ${processed.matricNumber}`,
+      };
+    }
+
+    const storagePath = getResultStoragePath(processed.matricNumber);
+    const uploadResult = await supabase.storage.from(bucket).upload(storagePath, processed.bytes, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+
+    if (uploadResult.error) {
+      return {
+        matricNumber: processed.matricNumber,
+        status: "error" as const,
+        message: uploadResult.error.message,
+      };
+    }
+
+    return {
+      matricNumber: processed.matricNumber,
+      storagePath,
+      student,
+      status: "uploaded" as const,
+    };
+  });
+
+  const uploadResults = await Promise.all(uploadPromises);
+
+  // OPTIMIZATION: Batch all database inserts with a single upsert
+  const successfulUploads = uploadResults.filter((r) => r.status === "uploaded");
+  if (successfulUploads.length > 0) {
+    const now = new Date().toISOString();
+    const resultsToInsert = successfulUploads.map((r) => ({
+      matric_number: r.matricNumber,
+      pdf_url: r.storagePath,
+      uploaded_at: now,
+      published_at: null,
+      delivery_state: "pending",
+      delivery_attempts: 0,
+      last_error: null,
+      updated_at: now,
+    }));
+
+    await supabase.from("results").upsert(resultsToInsert, { onConflict: "matric_number" });
   }
+
+  // Compile final outcomes
+  const outcomes: UploadOutcome[] = [
+    ...processedFiles
+      .filter((p) => p.status === "error")
+      .map((p) => ({
+        matricNumber: p.matricNumber,
+        status: p.status,
+        message: p.message ?? "Unknown error",
+      })),
+    ...processedFiles
+      .filter((p) => p.status === "error" || p.status === "pending")
+      .map((p) => {
+        if (p.status === "pending") {
+          const uploadResult = uploadResults.find((r) => r.matricNumber === p.matricNumber);
+          if (!uploadResult) return null;
+          if (uploadResult.status === "skipped") {
+            return {
+              matricNumber: uploadResult.matricNumber,
+              status: "skipped" as const,
+              message: uploadResult.message,
+            };
+          }
+          if (uploadResult.status === "error") {
+            return {
+              matricNumber: uploadResult.matricNumber,
+              status: "error" as const,
+              message: uploadResult.message,
+            };
+          }
+          return {
+            matricNumber: uploadResult.matricNumber,
+            status: "uploaded" as const,
+            message: `Uploaded result for ${uploadResult.student?.full_name}`,
+          };
+        }
+        return null;
+      })
+      .filter((o) => o !== null),
+  ];
 
   return outcomes;
 }
@@ -485,8 +536,8 @@ export async function publishResults(input: Partial<PublishResultsInput> = {}) {
   const parsed = publishResultsSchema.parse(input);
   const supabase = createSupabaseServiceClient();
 
+  // Fetch all results that need publishing
   let query = supabase.from("results").select("*").order("uploaded_at", { ascending: false });
-
   if (parsed.matricNumbers?.length) {
     query = query.in("matric_number", parsed.matricNumbers.map(normalizeMatricNumber));
   }
@@ -497,44 +548,79 @@ export async function publishResults(input: Partial<PublishResultsInput> = {}) {
     throw new Error(error.message);
   }
 
-  const outputs: PublishOutcome[] = [];
+  const resultsList = (results ?? []) as ResultRecord[];
 
-  for (const result of (results ?? []) as ResultRecord[]) {
+  if (resultsList.length === 0) {
+    return [];
+  }
+
+  // OPTIMIZATION: Batch fetch all students in one query instead of individual queries
+  const matricNumbers = resultsList.map((r) => normalizeMatricNumber(r.matric_number));
+  const { data: studentsData = [] } = await supabase
+    .from("students")
+    .select("*")
+    .in("matric_number", matricNumbers);
+  const studentsByMatric = new Map(
+    (studentsData as StudentRecord[]).map((s) => [normalizeMatricNumber(s.matric_number), s]),
+  );
+
+  // OPTIMIZATION: Batch fetch all latest notifications in one query
+  const { data: allNotifications = [] } = await supabase
+    .from("notifications")
+    .select("*")
+    .in("matric_number", matricNumbers)
+    .order("timestamp", { ascending: false });
+
+  const latestNotificationsByMatric = new Map<string, NotificationRecord>();
+  for (const notification of allNotifications as NotificationRecord[]) {
+    const matric = normalizeMatricNumber(notification.matric_number);
+    if (!latestNotificationsByMatric.has(matric)) {
+      latestNotificationsByMatric.set(matric, notification);
+    }
+  }
+
+  // OPTIMIZATION: Batch get all signed URLs in parallel
+  const signedUrlPromises = resultsList.map((result) => getSignedResultUrl(result.pdf_url));
+  const signedUrls = await Promise.all(signedUrlPromises);
+  const signedUrlsByPath = new Map(resultsList.map((r, i) => [r.pdf_url, signedUrls[i]]));
+
+  // OPTIMIZATION: Process all results in parallel
+  const processingPromises = resultsList.map(async (result) => {
     const matricNumber = normalizeMatricNumber(result.matric_number);
-    const student = await loadStudent(matricNumber);
+    const student = studentsByMatric.get(matricNumber);
 
     if (!student) {
-      outputs.push({
+      return {
         matricNumber,
-        status: "failed",
+        status: "failed" as const,
         message: "Student record is missing",
-      });
-      await updateResultState({
-        matricNumber,
-        deliveryState: "failed",
-        lastError: "Student record is missing",
-        deliveryAttempts: result.delivery_attempts + 1,
-      });
-      await storeNotificationLog({
-        matricNumber,
-        emailStatus: "failed",
-        smsStatus: "failed",
-        whatsappStatus: "failed",
-        errorMessage: "Student record is missing",
-      });
-      continue;
+        notificationLog: {
+          matricNumber,
+          emailStatus: "failed",
+          smsStatus: "failed",
+          whatsappStatus: "failed",
+          errorMessage: "Student record is missing",
+        },
+        resultUpdate: {
+          matricNumber,
+          deliveryState: "failed" as const,
+          lastError: "Student record is missing",
+          deliveryAttempts: result.delivery_attempts + 1,
+        },
+      };
     }
 
     if (result.delivery_state === "sent" && parsed.retryOnlyFailed) {
-      outputs.push({
+      return {
         matricNumber,
-        status: "skipped",
+        status: "skipped" as const,
         message: "Already delivered successfully",
-      });
-      continue;
+        resultUpdate: null,
+        notificationLog: null,
+      };
     }
 
-    const latestNotification = await getLatestNotification(matricNumber);
+    const latestNotification = latestNotificationsByMatric.get(matricNumber);
     if (
       latestNotification &&
       latestNotification.email_status === "success" &&
@@ -542,22 +628,24 @@ export async function publishResults(input: Partial<PublishResultsInput> = {}) {
       latestNotification.whatsapp_status === "success" &&
       parsed.retryOnlyFailed
     ) {
-      outputs.push({
+      return {
         matricNumber,
-        status: "skipped",
+        status: "skipped" as const,
         message: "Latest delivery already succeeded",
-      });
-      await updateResultState({
-        matricNumber,
-        deliveryState: "sent",
-        lastError: null,
-        deliveryAttempts: result.delivery_attempts,
-      });
-      continue;
+        resultUpdate: {
+          matricNumber,
+          deliveryState: "sent" as const,
+          lastError: null,
+          deliveryAttempts: result.delivery_attempts,
+        },
+        notificationLog: null,
+      };
     }
 
     try {
-      const signedUrl = await getSignedResultUrl(result.pdf_url);
+      const signedUrl = signedUrlsByPath.get(result.pdf_url) || "";
+
+      // Send all notifications in parallel for this result
       const [emailBundle, smsBundle, whatsappBundle] = await Promise.all([
         sendEmailBundle(student, signedUrl, matricNumber),
         sendSmsBundle(student, signedUrl, matricNumber),
@@ -570,49 +658,109 @@ export async function publishResults(input: Partial<PublishResultsInput> = {}) {
       const errors = [...emailBundle.errors, ...smsBundle.errors, ...whatsappBundle.errors];
       const deliveryState = errors.length === 0 ? "sent" : "partial";
 
-      await storeNotificationLog({
+      return {
         matricNumber,
-        emailStatus,
-        smsStatus,
-        whatsappStatus,
-        errorMessage: errors.length > 0 ? errors.join(" | ") : null,
-      });
-      await updateResultState({
-        matricNumber,
-        deliveryState: errors.length === 0 ? "sent" : deliveryState,
-        lastError: errors.length > 0 ? errors.join(" | ") : null,
-        deliveryAttempts: result.delivery_attempts + 1,
-      });
-
-      outputs.push({
-        matricNumber,
-        status: errors.length === 0 ? "sent" : "failed",
+        status: errors.length === 0 ? ("sent" as const) : ("failed" as const),
         message: errors.length === 0 ? "Distribution completed" : errors.join(" | "),
-      });
+        notificationLog: {
+          matricNumber,
+          emailStatus,
+          smsStatus,
+          whatsappStatus,
+          errorMessage: errors.length > 0 ? errors.join(" | ") : null,
+        },
+        resultUpdate: {
+          matricNumber,
+          deliveryState: errors.length === 0 ? ("sent" as const) : (deliveryState as const),
+          lastError: errors.length > 0 ? errors.join(" | ") : null,
+          deliveryAttempts: result.delivery_attempts + 1,
+        },
+      };
     } catch (publishError) {
       const message = publishError instanceof Error ? publishError.message : "Distribution failed";
-      await storeNotificationLog({
+
+      return {
         matricNumber,
-        emailStatus: "failed",
-        smsStatus: "failed",
-        whatsappStatus: "failed",
-        errorMessage: message,
-      });
-      await updateResultState({
-        matricNumber,
-        deliveryState: "failed",
-        lastError: message,
-        deliveryAttempts: result.delivery_attempts + 1,
-      });
-      outputs.push({
-        matricNumber,
-        status: "failed",
+        status: "failed" as const,
         message,
-      });
+        notificationLog: {
+          matricNumber,
+          emailStatus: "failed",
+          smsStatus: "failed",
+          whatsappStatus: "failed",
+          errorMessage: message,
+        },
+        resultUpdate: {
+          matricNumber,
+          deliveryState: "failed" as const,
+          lastError: message,
+          deliveryAttempts: result.delivery_attempts + 1,
+        },
+      };
     }
+  });
+
+  const outcomes = await Promise.all(processingPromises);
+
+  // OPTIMIZATION: Batch all database writes at the end
+  const logsToInsert = outcomes
+    .map((o) => o.notificationLog)
+    .filter((log) => log !== null) as Array<{
+    matricNumber: string;
+    emailStatus: string;
+    smsStatus: string;
+    whatsappStatus: string;
+    errorMessage: string | null;
+  }>;
+
+  if (logsToInsert.length > 0) {
+    const now = new Date().toISOString();
+    await supabase.from("notifications").insert(
+      logsToInsert.map((log) => ({
+        ...log,
+        timestamp: now,
+      })),
+    );
   }
 
-  return outputs;
+  // Batch update all results
+  const resultUpdates = outcomes
+    .map((o) => o.resultUpdate)
+    .filter((update) => update !== null) as Array<{
+    matricNumber: string;
+    deliveryState: string;
+    lastError: string | null;
+    deliveryAttempts: number;
+  }>;
+
+  // Use individual updates in parallel since Supabase doesn't have batch update
+  if (resultUpdates.length > 0) {
+    const now = new Date().toISOString();
+    await Promise.all(
+      resultUpdates.map((update) =>
+        supabase
+          .from("results")
+          .update({
+            delivery_state: update.deliveryState,
+            published_at:
+              update.deliveryState === "sent" || update.deliveryState === "partial"
+                ? now
+                : null,
+            last_error: update.lastError,
+            delivery_attempts: update.deliveryAttempts,
+            updated_at: now,
+          })
+          .eq("matric_number", update.matricNumber),
+      ),
+    );
+  }
+
+  // Return outcomes without internal details
+  return outcomes.map((o) => ({
+    matricNumber: o.matricNumber,
+    status: o.status,
+    message: o.message,
+  }));
 }
 
 export async function getDashboardSnapshot() {
