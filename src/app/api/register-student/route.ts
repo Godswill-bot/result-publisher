@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           message:
-            "Server setup incomplete: Supabase environment variables are missing. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local and restart the server.",
+            "Server setup incomplete: required Supabase variables are missing. Add NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY to deployment environment variables, then redeploy.",
         },
         { status: 500 },
       );
@@ -104,7 +104,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json(
         {
           message:
-            "Server setup incomplete: Supabase environment variables are missing. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local and restart the server.",
+            "Server setup incomplete: required Supabase variables are missing. Add NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY to deployment environment variables, then redeploy.",
         },
         { status: 500 },
       );
