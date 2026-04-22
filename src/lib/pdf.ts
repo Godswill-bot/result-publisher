@@ -36,6 +36,36 @@ export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<s
 
     console.info(`[pdf-extract] Text from PDF (first 500 chars): ${text.substring(0, 500)}`);
 
+    // Some PDFs collapse each row into a compact stream such as:
+    // "122010306034NWAFOR,GodswillUchenna" where "1" is the S/N and the next
+    // 11 digits are the matric number. Detect year-prefixed candidates that are
+    // immediately followed by letters (surname), then prioritize those after
+    // the "Matric No" marker.
+    const compactText = text.replace(/\s+/g, "");
+    const compactMarkerIndex = compactText.search(/MATRIC(?:NUMBER|NO|#)?/i);
+    const compactCandidates: string[] = [];
+    for (const match of compactText.matchAll(/((?:20|21|22|23|24|25)\d{8,9})(?=[A-Z])/g)) {
+      if (match[1]) {
+        compactCandidates.push(match[1]);
+      }
+    }
+
+    if (compactCandidates.length > 0) {
+      if (compactMarkerIndex >= 0) {
+        const afterMarker = compactText.slice(compactMarkerIndex);
+        const prioritized = afterMarker.match(/((?:20|21|22|23|24|25)\d{8,9})(?=[A-Z])/);
+        if (prioritized?.[1]) {
+          const candidate = normalizeMatricNumber(prioritized[1]);
+          console.info(`[pdf-extract] ✓ Matric from compact row pattern: ${candidate}`);
+          return candidate;
+        }
+      }
+
+      const fallbackCandidate = normalizeMatricNumber(compactCandidates[0]);
+      console.info(`[pdf-extract] ✓ Matric from compact fallback: ${fallbackCandidate}`);
+      return fallbackCandidate;
+    }
+
     // Look for common matric number patterns:
     // 1. YYYY/XXXX format (e.g., 2021/1182)
     // 2. Continuous digits (e.g., 22010306034)
