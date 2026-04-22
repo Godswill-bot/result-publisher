@@ -29,11 +29,25 @@ export function isPdfFile(file: File) {
 
 export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<string | null> {
   try {
-    // Use dynamic import to avoid issues in non-Node.js environments
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdf = require("pdf-parse");
-    const data = await pdf(Buffer.from(buffer));
-    const text = data.text;
+    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(buffer),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    });
+
+    const pdf = await loadingTask.promise;
+    let text = "";
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item) => ("str" in item ? item.str : ""))
+        .join(" ");
+      text += `${pageText}\n`;
+    }
 
     console.info(`[pdf-extract] Text from PDF (first 500 chars): ${text.substring(0, 500)}`);
 
