@@ -255,7 +255,7 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
               disabled={isUploading}
               className="inline-flex items-center justify-center rounded-full bg-cyan-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isUploading ? "Uploading..." : "Upload PDFs"}
+              {isUploading ? "Uploading..." : "Match PDF's"}
             </button>
             {uploadError ? <p className="text-sm font-medium text-rose-600">{uploadError}</p> : null}
           </div>
