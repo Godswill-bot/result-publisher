@@ -20,14 +20,13 @@ export default function RegisterPage() {
               Register once. Receive every result automatically.
             </h1>
             <p className="max-w-xl text-base leading-7 text-emerald-100/85">
-              The matric number is the primary identifier. Once the admin uploads a matching PDF,
-              the system distributes the result to the student and parent contact points.
+              
             </p>
           </div>
           <div className="grid gap-3 text-sm text-emerald-100/85">
             <p>• Personal email, MTU email, phone, and parent contact details are stored securely.</p>
             <p>• Uploaded PDFs are matched against matric numbers before delivery.</p>
-            <p>• Failed deliveries are logged for safe retry.</p>
+          
           </div>
         </section>
 

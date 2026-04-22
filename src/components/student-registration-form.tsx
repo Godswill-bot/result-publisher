@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 const initialFormState = {
@@ -13,9 +14,9 @@ const initialFormState = {
 };
 
 export function StudentRegistrationForm() {
+  const router = useRouter();
   const [formState, setFormState] = useState(initialFormState);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
-  const [showSuccessNotice, setShowSuccessNotice] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -42,13 +43,12 @@ export function StudentRegistrationForm() {
       };
 
       if (!response.ok) {
-        setShowSuccessNotice(false);
         setErrorStatus(payload.message ?? "Registration failed");
         return;
       }
 
-      setShowSuccessNotice(true);
-      setFormState(initialFormState);
+      // Redirect to success page
+      router.push("/register/success");
     });
   }
 
@@ -87,12 +87,6 @@ export function StudentRegistrationForm() {
         </button>
         {errorStatus ? <p className="text-sm font-medium text-rose-700">{errorStatus}</p> : null}
       </div>
-
-      {showSuccessNotice ? (
-        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-          Successful, Thank you for registering, from now on results will be sent to the details provided by you.
-        </div>
-      ) : null}
     </form>
   );
 }

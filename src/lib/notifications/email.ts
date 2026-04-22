@@ -42,12 +42,22 @@ export async function sendEmailNotification({
   attachmentUrl,
   attachmentName,
 }: EmailDispatchInput): Promise<EmailDispatchResult> {
+  console.log("[Email] Processing email request:", { to, subject, hasAttachment: !!attachmentUrl });
+
   if (!hasSmtpConfiguration()) {
-    console.info("[email:console]", { to, subject, attachmentUrl });
-    return { success: true, mode: "console" };
+    console.warn(
+      "[Email:Console] SMTP not configured. Set EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASSWORD, EMAIL_FROM to enable real email sending.",
+    );
+    console.info("[Email:Console]", { to, subject, attachmentUrl });
+    return {
+      success: false,
+      mode: "console",
+      error: "Email SMTP not configured. Message logged to console.",
+    };
   }
 
   try {
+    console.log("[Email:SMTP] Connecting and sending...", { to, subject });
     const transporter = createTransporter();
     const info = await transporter.sendMail({
       from: env.emailFrom,
@@ -65,9 +75,11 @@ export async function sendEmailNotification({
         : undefined,
     });
 
+    console.log("[Email:SMTP] Successfully sent to", to, "with messageId:", info.messageId);
     return { success: true, mode: "smtp", messageId: info.messageId };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Email delivery failed";
+    console.error("[Email:SMTP] Failed to send to", to, ":", message);
     return { success: false, mode: "smtp", error: message };
   }
 }
