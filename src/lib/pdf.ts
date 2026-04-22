@@ -40,6 +40,21 @@ export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<s
     // 1. YYYY/XXXX format (e.g., 2021/1182)
     // 2. Continuous digits (e.g., 22010306034)
     // 3. With explicit "Matric Number" label
+
+    // First pass: prioritize candidates near the "Matric No" section.
+    // Some result PDFs collapse table cells into one digit stream, so we search for
+    // year-prefixed candidates (20-25) without requiring word boundaries.
+    const matricLabelIndex = text.search(/MATRIC\s*(?:NUMBER|NO|#)?/i);
+    if (matricLabelIndex >= 0) {
+      const labelWindow = text.slice(matricLabelIndex, matricLabelIndex + 1400);
+      const yearPrefixedInWindow = labelWindow.match(/(20|21|22|23|24|25)\d{8,9}/);
+      if (yearPrefixedInWindow?.[0]) {
+        const candidate = normalizeMatricNumber(yearPrefixedInWindow[0]);
+        console.info(`[pdf-extract] ✓ Matric from label window: ${candidate}`);
+        return candidate;
+      }
+    }
+
     const patterns = [
       // Explicit "Matric No" or "Matric Number" labels
       /MATRIC\s*(?:NUMBER|NO|#)?[\s:]*(\d{10,11})/i,        // "Matric Number: 22010306034"
@@ -47,6 +62,7 @@ export async function extractMatricNumberFromPdf(buffer: ArrayBuffer): Promise<s
       /MATRIC\s*(?:NUMBER|NO|#)?[\s:]*(\d{4}-\d{4,5})/i,   // "Matric Number: 2021-1182"
       /MATRIC\s*(?:NUMBER|NO|#)?[\s:]*(\d{4}\s+\d{4,5})/i, // "Matric Number: 2021 1182"
       // Without label - continuous digits first (10-11 digits is typical student matric)
+      /(20\d{8,9}|21\d{8,9}|22\d{8,9}|23\d{8,9}|24\d{8,9}|25\d{8,9})/, // 22010306034
       /\b(\d{10,11})\b/,                                     // 22010306034
       // Slashed format without label
       /(\d{4}\/\d{4,5})/,                                    // 2021/1182
