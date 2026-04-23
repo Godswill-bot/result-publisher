@@ -227,10 +227,11 @@ export async function uploadResultFiles(files: File[]): Promise<UploadOutcome[]>
 
   // OPTIMIZATION: Batch student lookup instead of individual queries
   const matricNumbers = validFiles.map((p) => p.matricNumber);
-  const { data: students = [] } = await supabase
+  const { data: studentsData } = await supabase
     .from("students")
     .select("matric_number, full_name")
     .in("matric_number", matricNumbers);
+  const students = studentsData ?? [];
   const studentsByMatric = new Map(students.map((s) => [s.matric_number, s]));
 
   // OPTIMIZATION: Upload all files to storage in parallel
@@ -416,12 +417,13 @@ async function getSignedResultUrl(storagePath: string) {
 
 async function sendEmailBundle(student: StudentRecord, signedUrl: string, matricNumber: string) {
   const recipients = [student.email, student.mtu_email, student.parent_email];
-  const subject = `Result published for ${matricNumber}`;
+  const subject = "Mountain Top University | Results are out";
   const baseText = [
+    "Mountain Top University",
+    "Results are out",
     `Hello ${student.full_name},`,
     `Your result for ${matricNumber} is now available.`,
     `Download link: ${signedUrl}`,
-    "This link expires after seven days.",
   ].join("\n\n");
 
   const errors: string[] = [];
@@ -431,7 +433,7 @@ async function sendEmailBundle(student: StudentRecord, signedUrl: string, matric
       to: recipient,
       subject,
       text: baseText,
-      html: `<p>Hello ${student.full_name},</p><p>Your result for <strong>${matricNumber}</strong> is now available.</p><p><a href="${signedUrl}">Download the PDF result</a></p><p>This link expires after seven days.</p>`,
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a"><h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;color:#052e16">Mountain Top University</h1><h2 style="margin:0 0 16px;font-size:18px;line-height:1.3;color:#166534">Results are out</h2><p>Hello ${student.full_name},</p><p>Your result for <strong>${matricNumber}</strong> is now available.</p><p><a href="${signedUrl}">Download the PDF result</a></p><p>This link expires after seven days.</p></div>`,
       attachmentUrl: signedUrl,
       attachmentName: `${matricNumber}.pdf`,
     });
@@ -656,7 +658,7 @@ export async function publishResults(input: Partial<PublishResultsInput> = {}) {
       const smsStatus = smsBundle.status;
       const whatsappStatus = whatsappBundle.status;
       const errors = [...emailBundle.errors, ...smsBundle.errors, ...whatsappBundle.errors];
-      const deliveryState = errors.length === 0 ? "sent" : "partial";
+      const deliveryState: "sent" | "partial" = errors.length === 0 ? "sent" : "partial";
 
       return {
         matricNumber,
@@ -671,7 +673,7 @@ export async function publishResults(input: Partial<PublishResultsInput> = {}) {
         },
         resultUpdate: {
           matricNumber,
-          deliveryState: errors.length === 0 ? ("sent" as const) : (deliveryState as const),
+          deliveryState,
           lastError: errors.length > 0 ? errors.join(" | ") : null,
           deliveryAttempts: result.delivery_attempts + 1,
         },
