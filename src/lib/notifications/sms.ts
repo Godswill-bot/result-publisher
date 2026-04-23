@@ -7,7 +7,7 @@ export type SmsDispatchInput = {
 
 export type SmsDispatchResult = {
   success: boolean;
-  mode: "termii" | "twilio" | "console";
+  mode: "twilio" | "console" | "skipped";
   error?: string;
 };
 
@@ -17,60 +17,32 @@ function validatePhoneNumber(phone: string): boolean {
   return cleaned.length >= 10;
 }
 
-async function sendViaTermii(to: string, message: string) {
-  if (!env.termiiApiKey) {
-    const error = "TERMII_API_KEY is missing - SMS cannot be sent";
-    console.error("[SMS:Termii]", error);
-    return { success: false, mode: "termii" as const, error };
+function normalizeTwilioPhoneNumber(phone: string): string {
+  const trimmed = phone.trim();
+
+  if (trimmed.startsWith("whatsapp:")) {
+    return trimmed;
   }
 
-  if (!env.termiiSenderId) {
-    const error = "TERMII_SENDER_ID is missing - SMS cannot be sent";
-    console.error("[SMS:Termii]", error);
-    return { success: false, mode: "termii" as const, error };
+  const cleaned = trimmed.replace(/[\s()-]/g, "");
+
+  if (cleaned.startsWith("+")) {
+    return cleaned;
   }
 
-  if (!validatePhoneNumber(to)) {
-    const error = `Invalid phone number format: ${to}`;
-    console.error("[SMS:Termii]", error);
-    return { success: false, mode: "termii" as const, error };
+  if (cleaned.startsWith("234") && cleaned.length >= 13) {
+    return `+${cleaned}`;
   }
 
-  try {
-    const url = new URL(env.termiiSmsEndpoint, env.termiiBaseUrl).toString();
-    console.log("[SMS:Termii] Sending to:", { to, url });
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        api_key: env.termiiApiKey,
-        from: env.termiiSenderId,
-        to,
-        sms: message,
-        type: "plain",
-        channel: "generic",
-      }),
-    });
-
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      const error = `Termii SMS failed with status ${response.status}: ${responseText}`;
-      console.error("[SMS:Termii]", error);
-      return { success: false, mode: "termii" as const, error };
-    }
-
-    console.log("[SMS:Termii] Successfully sent to", to);
-    return { success: true, mode: "termii" as const };
-  } catch (err) {
-    const error = err instanceof Error ? err.message : "Unknown error";
-    console.error("[SMS:Termii] Exception:", error);
-    return { success: false, mode: "termii" as const, error };
+  if (cleaned.startsWith("0") && cleaned.length >= 11) {
+    return `+234${cleaned.slice(1)}`;
   }
+
+  if (/^\d{10,15}$/.test(cleaned)) {
+    return `+${cleaned}`;
+  }
+
+  return cleaned;
 }
 
 async function sendViaTwilio(to: string, message: string) {
@@ -87,13 +59,15 @@ async function sendViaTwilio(to: string, message: string) {
   }
 
   try {
+    const fromNumber = env.twilioSmsFrom.replace(/\s+/g, "");
+    const toNumber = normalizeTwilioPhoneNumber(to);
     const body = new URLSearchParams({
-      From: env.twilioSmsFrom,
-      To: to,
+      From: fromNumber,
+      To: toNumber,
       Body: message,
     });
 
-    console.log("[SMS:Twilio] Sending to:", to);
+    console.log("[SMS:Twilio] Sending to:", toNumber);
 
     const response = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${env.twilioAccountSid}/Messages.json`,
@@ -110,12 +84,22 @@ async function sendViaTwilio(to: string, message: string) {
     const text = await response.text();
 
     if (!response.ok) {
+      const isTrialAccountUnverifiedRecipient =
+        response.status === 400 &&
+        (text.includes("21608") || text.toLowerCase().includes("unverified"));
+
+      if (isTrialAccountUnverifiedRecipient) {
+        const skipReason = `Twilio trial account skipped unverified recipient ${toNumber}`;
+        console.warn("[SMS:Twilio]", skipReason, text);
+        return { success: true, mode: "skipped" as const };
+      }
+
       const error = `Twilio SMS failed with status ${response.status}: ${text}`;
       console.error("[SMS:Twilio]", error);
       return { success: false, mode: "twilio" as const, error };
     }
 
-    console.log("[SMS:Twilio] Successfully sent to", to);
+    console.log("[SMS:Twilio] Successfully sent to", toNumber);
     return { success: true, mode: "twilio" as const };
   } catch (err) {
     const error = err instanceof Error ? err.message : "Unknown error";
@@ -128,9 +112,9 @@ export async function sendSmsNotification({ to, message }: SmsDispatchInput): Pr
   console.log("[SMS] Processing SMS request:", { to, messageLength: message.length });
 
   // Check if we have any credentials configured
-  if (!env.termiiApiKey && !env.twilioAccountSid) {
+  if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioSmsFrom) {
     console.warn(
-      "[SMS:Console] No SMS credentials configured. Set TERMII_API_KEY or TWILIO_ACCOUNT_SID to enable real SMS sending.",
+      "[SMS:Console] No Twilio SMS credentials configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_SMS_FROM to enable real SMS sending.",
     );
     console.info("[SMS:Console]", { to, message });
     return {
@@ -140,9 +124,5 @@ export async function sendSmsNotification({ to, message }: SmsDispatchInput): Pr
     };
   }
 
-  if (env.messagingProvider === "twilio") {
-    return sendViaTwilio(to, message);
-  }
-
-  return sendViaTermii(to, message);
+  return sendViaTwilio(to, message);
 }
