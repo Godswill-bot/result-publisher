@@ -8,28 +8,33 @@ export function requireEnv(name: string): string {
   return value;
 }
 
+function getEnv(name: string): string {
+  const value = process.env[name];
+  return value?.trim() ?? "";
+}
+
 export const env = {
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-  supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
-  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-  supabaseStorageBucket: process.env.SUPABASE_STORAGE_BUCKET ?? "student-results",
-  adminSessionSecret: process.env.ADMIN_SESSION_SECRET ?? "",
-  emailFrom: process.env.EMAIL_FROM ?? "",
-  emailHost: process.env.EMAIL_HOST ?? "",
-  emailPort: Number(process.env.EMAIL_PORT ?? "587"),
-  emailUser: process.env.EMAIL_USER ?? "",
-  emailPassword: process.env.EMAIL_PASSWORD ?? "",
-  messagingProvider: process.env.MESSAGING_PROVIDER ?? "termii",
-  termiiApiKey: process.env.TERMII_API_KEY ?? "",
-  termiiSenderId: process.env.TERMII_SENDER_ID ?? "",
-  termiiWhatsappFrom: process.env.TERMII_WHATSAPP_FROM ?? process.env.TERMII_SENDER_ID ?? "",
-  termiiBaseUrl: process.env.TERMII_BASE_URL ?? "https://api.ng.termii.com",
-  termiiSmsEndpoint: process.env.TERMII_SMS_ENDPOINT ?? "/api/sms/send",
-  termiiWhatsappEndpoint: process.env.TERMII_WHATSAPP_ENDPOINT ?? "/api/whatsapp/send",
-  twilioAccountSid: process.env.TWILIO_ACCOUNT_SID ?? "",
-  twilioAuthToken: process.env.TWILIO_AUTH_TOKEN ?? "",
-  twilioSmsFrom: process.env.TWILIO_SMS_FROM ?? "",
-  twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM ?? "",
+  supabaseUrl: getEnv("NEXT_PUBLIC_SUPABASE_URL"),
+  supabaseAnonKey: getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+  supabaseServiceRoleKey: getEnv("SUPABASE_SERVICE_ROLE_KEY"),
+  supabaseStorageBucket: getEnv("SUPABASE_STORAGE_BUCKET") || "student-results",
+  adminSessionSecret: getEnv("ADMIN_SESSION_SECRET"),
+  emailFrom: getEnv("EMAIL_FROM"),
+  emailHost: getEnv("EMAIL_HOST"),
+  emailPort: Number(getEnv("EMAIL_PORT") || "587"),
+  emailUser: getEnv("EMAIL_USER"),
+  emailPassword: getEnv("EMAIL_PASSWORD"),
+  messagingProvider: getEnv("MESSAGING_PROVIDER") || "termii",
+  termiiApiKey: getEnv("TERMII_API_KEY"),
+  termiiSenderId: getEnv("TERMII_SENDER_ID"),
+  termiiWhatsappFrom: getEnv("TERMII_WHATSAPP_FROM") || getEnv("TERMII_SENDER_ID"),
+  termiiBaseUrl: getEnv("TERMII_BASE_URL") || "https://api.ng.termii.com",
+  termiiSmsEndpoint: getEnv("TERMII_SMS_ENDPOINT") || "/api/sms/send",
+  termiiWhatsappEndpoint: getEnv("TERMII_WHATSAPP_ENDPOINT") || "/api/whatsapp/send",
+  twilioAccountSid: getEnv("TWILIO_ACCOUNT_SID"),
+  twilioAuthToken: getEnv("TWILIO_AUTH_TOKEN"),
+  twilioSmsFrom: getEnv("TWILIO_SMS_FROM"),
+  twilioWhatsappFrom: getEnv("TWILIO_WHATSAPP_FROM"),
 };
 
 export function hasSupabaseCredentials() {
