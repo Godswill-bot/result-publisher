@@ -22,6 +22,7 @@ export const env = {
   messagingProvider: process.env.MESSAGING_PROVIDER ?? "termii",
   termiiApiKey: process.env.TERMII_API_KEY ?? "",
   termiiSenderId: process.env.TERMII_SENDER_ID ?? "",
+  termiiWhatsappFrom: process.env.TERMII_WHATSAPP_FROM ?? process.env.TERMII_SENDER_ID ?? "",
   termiiBaseUrl: process.env.TERMII_BASE_URL ?? "https://api.ng.termii.com",
   termiiSmsEndpoint: process.env.TERMII_SMS_ENDPOINT ?? "/api/sms/send",
   termiiWhatsappEndpoint: process.env.TERMII_WHATSAPP_ENDPOINT ?? "/api/whatsapp/send",

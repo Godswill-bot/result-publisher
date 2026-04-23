@@ -24,8 +24,8 @@ async function sendViaTermii(to: string, message: string) {
     return { success: false, mode: "termii" as const, error };
   }
 
-  if (!env.termiiSenderId) {
-    const error = "TERMII_SENDER_ID is missing - WhatsApp cannot be sent";
+  if (!env.termiiWhatsappFrom) {
+    const error = "TERMII_WHATSAPP_FROM is missing - WhatsApp cannot be sent";
     console.error("[WhatsApp:Termii]", error);
     return { success: false, mode: "termii" as const, error };
   }
@@ -48,7 +48,7 @@ async function sendViaTermii(to: string, message: string) {
       },
       body: JSON.stringify({
         api_key: env.termiiApiKey,
-        from: env.termiiSenderId,
+        from: env.termiiWhatsappFrom,
         to,
         message: message,
         type: "plain",
