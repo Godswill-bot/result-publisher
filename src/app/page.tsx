@@ -18,7 +18,7 @@ export default function Home() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/register"
-              className="rounded-full bg-emerald-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
+              className="rounded-full bg-emerald-900 px-6 py-3 text-sm font-semibold text-white! transition hover:bg-emerald-800"
             >
               Register A Student
             </Link>
