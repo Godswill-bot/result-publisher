@@ -10,6 +10,7 @@ import {
 } from "./validation";
 import type { AdminLogRecord, DashboardStats, NotificationRecord, ResultRecord, StudentRecord } from "./types";
 import { sendEmailNotification, sendSmsNotification, sendWhatsAppNotification } from "./notifications";
+import { env } from "./env";
 
 const resultLinkTtlSeconds = 60 * 60 * 24 * 7;
 
@@ -450,6 +451,13 @@ async function sendEmailBundle(student: StudentRecord, signedUrl: string, matric
 }
 
 async function sendSmsBundle(student: StudentRecord, signedUrl: string, matricNumber: string) {
+  if (!env.enableSmsDelivery) {
+    return {
+      status: "success" as const,
+      errors: [] as string[],
+    };
+  }
+
   const recipients = [student.phone_number, student.parent_phone];
   const errors: string[] = [];
   const message = `MTU result published for ${matricNumber}. Download: ${signedUrl}`;
@@ -472,6 +480,13 @@ async function sendSmsBundle(student: StudentRecord, signedUrl: string, matricNu
 }
 
 async function sendWhatsAppBundle(student: StudentRecord, signedUrl: string, matricNumber: string) {
+  if (!env.enableWhatsappDelivery) {
+    return {
+      status: "success" as const,
+      errors: [] as string[],
+    };
+  }
+
   const recipients = [student.phone_number, student.parent_phone];
   const errors: string[] = [];
   const message = [
@@ -658,12 +673,25 @@ export async function publishResults(input: Partial<PublishResultsInput> = {}) {
       const smsStatus = smsBundle.status;
       const whatsappStatus = whatsappBundle.status;
       const errors = [...emailBundle.errors, ...smsBundle.errors, ...whatsappBundle.errors];
-      const deliveryState: "sent" | "partial" = errors.length === 0 ? "sent" : "partial";
+      const successfulChannels = [emailStatus, smsStatus, whatsappStatus].filter(
+        (status) => status === "success",
+      ).length;
+
+      const deliveryState: "sent" | "partial" | "failed" =
+        successfulChannels === 3 ? "sent" : successfulChannels > 0 ? "partial" : "failed";
+
+      const status: "sent" | "failed" = deliveryState === "failed" ? "failed" : "sent";
+      const message =
+        status === "sent"
+          ? errors.length === 0
+            ? "Distribution completed"
+            : `Distribution completed with some channel failures: ${errors.join(" | ")}`
+          : errors.join(" | ");
 
       return {
         matricNumber,
-        status: errors.length === 0 ? ("sent" as const) : ("failed" as const),
-        message: errors.length === 0 ? "Distribution completed" : errors.join(" | "),
+        status,
+        message,
         notificationLog: {
           matricNumber,
           emailStatus,

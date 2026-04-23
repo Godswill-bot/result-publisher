@@ -13,6 +13,24 @@ function getEnv(name: string): string {
   return value?.trim() ?? "";
 }
 
+function getEnvBoolean(name: string, defaultValue: boolean): boolean {
+  const value = getEnv(name).toLowerCase();
+
+  if (!value) {
+    return defaultValue;
+  }
+
+  if (["1", "true", "yes", "on"].includes(value)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(value)) {
+    return false;
+  }
+
+  return defaultValue;
+}
+
 export const env = {
   supabaseUrl: getEnv("NEXT_PUBLIC_SUPABASE_URL"),
   supabaseAnonKey: getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
@@ -35,6 +53,8 @@ export const env = {
   twilioAuthToken: getEnv("TWILIO_AUTH_TOKEN"),
   twilioSmsFrom: getEnv("TWILIO_SMS_FROM"),
   twilioWhatsappFrom: getEnv("TWILIO_WHATSAPP_FROM"),
+  enableSmsDelivery: getEnvBoolean("ENABLE_SMS_DELIVERY", true),
+  enableWhatsappDelivery: getEnvBoolean("ENABLE_WHATSAPP_DELIVERY", true),
 };
 
 export function hasSupabaseCredentials() {

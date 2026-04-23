@@ -29,6 +29,7 @@ Copy `.env.example` to `.env.local` and fill in your Supabase and messaging cred
 - `EMAIL_FROM`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD`
 - `MESSAGING_PROVIDER`, `TERMII_API_KEY`, `TERMII_SENDER_ID`, `TERMII_WHATSAPP_FROM`, `TERMII_BASE_URL`, `TERMII_SMS_ENDPOINT`, `TERMII_WHATSAPP_ENDPOINT`
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`, `TWILIO_WHATSAPP_FROM`
+- `ENABLE_SMS_DELIVERY`, `ENABLE_WHATSAPP_DELIVERY` (optional, default `true`; set to `false` to disable a channel while provider setup is pending)
 
 ## Supabase setup
 
