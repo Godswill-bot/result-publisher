@@ -433,7 +433,7 @@ async function sendEmailBundle(student: StudentRecord, signedUrl: string, matric
       to: recipient,
       subject,
       text: baseText,
-      html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a"><h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;color:#052e16">Mountain Top University</h1><h2 style="margin:0 0 16px;font-size:18px;line-height:1.3;color:#166534">Results are out</h2><p>Hello ${student.full_name},</p><p>Your result for <strong>${matricNumber}</strong> is now available.</p><p><a href="${signedUrl}">Download the PDF result</a></p><p>This link expires after seven days.</p></div>`,
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a"><h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;color:#052e16">Mountain Top University</h1><h2 style="margin:0 0 16px;font-size:18px;line-height:1.3;color:#166534">Results are out</h2><p>Hello ${student.full_name},</p><p>Your result for <strong>${matricNumber}</strong> is now available.</p><p><a href="${signedUrl}">Download the PDF result</a></p></div>`,
       attachmentUrl: signedUrl,
       attachmentName: `${matricNumber}.pdf`,
     });
