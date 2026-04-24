@@ -428,20 +428,28 @@ async function sendEmailBundle(student: StudentRecord, signedUrl: string, matric
   ].join("\n\n");
 
   const errors: string[] = [];
+  const outcomes = await Promise.allSettled(
+    recipients.map((recipient) =>
+      sendEmailNotification({
+        to: recipient,
+        subject,
+        text: baseText,
+        html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a"><h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;color:#052e16">Mountain Top University</h1><h2 style="margin:0 0 16px;font-size:18px;line-height:1.3;color:#166534">Results are out</h2><p>Hello ${student.full_name},</p><p>Your result for <strong>${matricNumber}</strong> is now available.</p><p><a href="${signedUrl}">Download the PDF result</a></p></div>`,
+        attachmentUrl: signedUrl,
+        attachmentName: `${matricNumber}.pdf`,
+      }).then((outcome) => ({ recipient, outcome })),
+    ),
+  );
 
-  for (const recipient of recipients) {
-    const outcome = await sendEmailNotification({
-      to: recipient,
-      subject,
-      text: baseText,
-      html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a"><h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;color:#052e16">Mountain Top University</h1><h2 style="margin:0 0 16px;font-size:18px;line-height:1.3;color:#166534">Results are out</h2><p>Hello ${student.full_name},</p><p>Your result for <strong>${matricNumber}</strong> is now available.</p><p><a href="${signedUrl}">Download the PDF result</a></p></div>`,
-      attachmentUrl: signedUrl,
-      attachmentName: `${matricNumber}.pdf`,
-    });
-
-    if (!outcome.success) {
-      errors.push(`${recipient}: ${outcome.error ?? "Email failed"}`);
+  for (const result of outcomes) {
+    if (result.status === "fulfilled") {
+      if (!result.value.outcome.success) {
+        errors.push(`${result.value.recipient}: ${result.value.outcome.error ?? "Email failed"}`);
+      }
+      continue;
     }
+
+    errors.push(`unknown: ${result.reason instanceof Error ? result.reason.message : "Email failed"}`);
   }
 
   return {
@@ -461,16 +469,24 @@ async function sendSmsBundle(student: StudentRecord, signedUrl: string, matricNu
   const recipients = [student.phone_number, student.parent_phone];
   const errors: string[] = [];
   const message = `MTU result published for ${matricNumber}. Download: ${signedUrl}`;
+  const outcomes = await Promise.allSettled(
+    recipients.map((recipient) =>
+      sendSmsNotification({
+        to: recipient,
+        message,
+      }).then((outcome) => ({ recipient, outcome })),
+    ),
+  );
 
-  for (const recipient of recipients) {
-    const outcome = await sendSmsNotification({
-      to: recipient,
-      message,
-    });
-
-    if (!outcome.success) {
-      errors.push(`${recipient}: ${outcome.error ?? "SMS failed"}`);
+  for (const result of outcomes) {
+    if (result.status === "fulfilled") {
+      if (!result.value.outcome.success) {
+        errors.push(`${result.value.recipient}: ${result.value.outcome.error ?? "SMS failed"}`);
+      }
+      continue;
     }
+
+    errors.push(`unknown: ${result.reason instanceof Error ? result.reason.message : "SMS failed"}`);
   }
 
   return {
@@ -494,16 +510,24 @@ async function sendWhatsAppBundle(student: StudentRecord, signedUrl: string, mat
     `Download: ${signedUrl}`,
     "Please keep this link private.",
   ].join("\n");
+  const outcomes = await Promise.allSettled(
+    recipients.map((recipient) =>
+      sendWhatsAppNotification({
+        to: recipient,
+        message,
+      }).then((outcome) => ({ recipient, outcome })),
+    ),
+  );
 
-  for (const recipient of recipients) {
-    const outcome = await sendWhatsAppNotification({
-      to: recipient,
-      message,
-    });
-
-    if (!outcome.success) {
-      errors.push(`${recipient}: ${outcome.error ?? "WhatsApp failed"}`);
+  for (const result of outcomes) {
+    if (result.status === "fulfilled") {
+      if (!result.value.outcome.success) {
+        errors.push(`${result.value.recipient}: ${result.value.outcome.error ?? "WhatsApp failed"}`);
+      }
+      continue;
     }
+
+    errors.push(`unknown: ${result.reason instanceof Error ? result.reason.message : "WhatsApp failed"}`);
   }
 
   return {
@@ -638,11 +662,12 @@ export async function publishResults(input: Partial<PublishResultsInput> = {}) {
     }
 
     const latestNotification = latestNotificationsByMatric.get(matricNumber);
+    const whatsappChannelReady = !env.enableWhatsappDelivery || latestNotification?.whatsapp_status === "success";
     if (
       latestNotification &&
       latestNotification.email_status === "success" &&
       latestNotification.sms_status === "success" &&
-      latestNotification.whatsapp_status === "success" &&
+      whatsappChannelReady &&
       parsed.retryOnlyFailed
     ) {
       return {

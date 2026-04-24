@@ -27,9 +27,10 @@ Copy `.env.example` to `.env.local` and fill in your Supabase and messaging cred
 - `SUPABASE_STORAGE_BUCKET`
 - `ADMIN_SESSION_SECRET`
 - `EMAIL_FROM`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD`
-- `MESSAGING_PROVIDER`, `TERMII_API_KEY`, `TERMII_SENDER_ID`, `TERMII_WHATSAPP_FROM`, `TERMII_BASE_URL`, `TERMII_SMS_ENDPOINT`, `TERMII_WHATSAPP_ENDPOINT`
-- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`, `TWILIO_WHATSAPP_FROM`
-- `ENABLE_SMS_DELIVERY`, `ENABLE_WHATSAPP_DELIVERY` (optional, default `true`; set to `false` to disable a channel while provider setup is pending)
+- `MESSAGING_PROVIDER` (default `twilio`)
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`
+- `ENABLE_SMS_DELIVERY` (optional, default `true`)
+- `ENABLE_WHATSAPP_DELIVERY` (optional, default `false`; keep it disabled if you only want SMS)
 
 ## Supabase setup
 
@@ -76,7 +77,7 @@ Open `http://localhost:3000` for the public landing page, `http://localhost:3000
 - The publish flow creates signed PDF URLs and logs delivery outcomes.
 - Duplicate registrations are rejected when matric number or any submitted contact details already exist.
 - Admin actions (login, logout, upload, publish) are stored in `admin_logs` and shown in the dashboard.
-- The app supports provider-based email and messaging adapters; if SMTP or messaging credentials are missing, the adapters fall back to console logging for development.
+- The app uses Twilio for SMS delivery. WhatsApp is disabled by default and can stay off if you only want SMS.
 
 ## Simple system documentation
 

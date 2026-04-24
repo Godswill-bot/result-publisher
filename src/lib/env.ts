@@ -42,7 +42,7 @@ export const env = {
   emailPort: Number(getEnv("EMAIL_PORT") || "587"),
   emailUser: getEnv("EMAIL_USER"),
   emailPassword: getEnv("EMAIL_PASSWORD"),
-  messagingProvider: getEnv("MESSAGING_PROVIDER") || "termii",
+  messagingProvider: getEnv("MESSAGING_PROVIDER") || "twilio",
   termiiApiKey: getEnv("TERMII_API_KEY"),
   termiiSenderId: getEnv("TERMII_SENDER_ID"),
   termiiWhatsappFrom: getEnv("TERMII_WHATSAPP_FROM") || getEnv("TERMII_SENDER_ID"),
@@ -54,7 +54,7 @@ export const env = {
   twilioSmsFrom: getEnv("TWILIO_SMS_FROM"),
   twilioWhatsappFrom: getEnv("TWILIO_WHATSAPP_FROM"),
   enableSmsDelivery: getEnvBoolean("ENABLE_SMS_DELIVERY", true),
-  enableWhatsappDelivery: getEnvBoolean("ENABLE_WHATSAPP_DELIVERY", true),
+  enableWhatsappDelivery: getEnvBoolean("ENABLE_WHATSAPP_DELIVERY", false),
 };
 
 export function hasSupabaseCredentials() {

@@ -41,6 +41,14 @@ function badgeClass(status: string) {
   return "border-rose-200 bg-rose-50 text-rose-700";
 }
 
+function messageClass(value: string) {
+  if (/error|failed|missing/i.test(value)) {
+    return "text-rose-700";
+  }
+
+  return "text-emerald-700";
+}
+
 export function AdminDashboard({ adminEmail, students, results, logs, adminLogs, stats }: AdminDashboardProps) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
@@ -276,7 +284,7 @@ export function AdminDashboard({ adminEmail, students, results, logs, adminLogs,
 
           {publishError ? <p className="text-sm font-medium text-rose-600">{publishError}</p> : null}
           {removeError ? <p className="text-sm font-medium text-rose-600">{removeError}</p> : null}
-          {message ? <p className="text-sm font-medium text-emerald-700">{message}</p> : null}
+          {message ? <p className={`text-sm font-medium ${messageClass(message)}`}>{message}</p> : null}
         </section>
 
         <section className="grid gap-4 rounded-4xl border border-white/70 bg-white/90 p-6 shadow-[0_40px_90px_-60px_rgba(15,23,42,0.35)] backdrop-blur">
